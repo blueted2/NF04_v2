@@ -1,12 +1,16 @@
 from collections import namedtuple
+from lib2to3.pgen2.token import NEWLINE
 import ply.lex as lex
 
 reserved = {
     'variables': 'VARIABLES',
-    'si'       : 'SI',
-    'fin'      : 'FIN',
-    'entier'   : 'ENTIER',
-    'reel'     : 'REEL'
+    # 'si'       : 'SI',
+    # 'fin'      : 'FIN',
+    # 'entier'   : 'ENTIER',
+    # 'reel'     : 'REEL',
+    # 'ptr'      : 'POINTEUR',
+    'pointeur' : 'POINTEUR',
+    'vers'     : 'VERS'
 }
 
 # List of token names.   This is always required
@@ -16,10 +20,16 @@ tokens = [
    'ID'
 ] + list(reserved.values())
 
-literals = '''+-*/(){}=:,;'''
+literals = "+-*/(){}=:,;"
 
 # Regular expression rules for simple tokens
-t_NEWLINE = r'\n'
+def t_NEWLINE(t):
+    r'\n'
+    t.value = "\n"
+    t.type = "NEWLINE"
+    t.lexer.lineno += len(t.value)
+
+    return t
 
 # A string containing ignored characters (spaces and tabs)
 t_ignore  = ' \t'
@@ -39,11 +49,6 @@ def t_ID(t):
     r'[a-zA-Z_][a-zA-Z_0-9]*'
     t.type = reserved.get(t.value,'ID')    # Check for reserved words
     return t
-
-# Define a rule so we can track line numbers
-def t_newline(t):
-    r'\n+'
-    t.lexer.lineno += len(t.value)
 
 # Error handling rule
 def t_error(t):

@@ -1,8 +1,9 @@
-from lexer import *
+# from lexer import lexer
+from parser import parser
+
 
 with open("program.NF04", 'r') as fp:
     text = fp.read()
 
-lexer.input(text)
-while t := lexer.token():
-    print(t)
+result = parser.parse(text, debug=False)
+print(result)

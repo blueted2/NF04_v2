@@ -19,7 +19,7 @@ tokens = [
    'ID'
 ] + list(reserved.values())
 
-literals = "+-*/(){}=:,;"
+literals = "+-*/(){}[]=:,;"
 
 # Regular expression rules for simple tokens
 def t_NEWLINE(t):

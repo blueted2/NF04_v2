@@ -1,3 +1,3 @@
 variables : 
-    a1, b2, c3, d4, : pointeur vers pointeur vers yay
-    a, y7 y8 uu, t, : yay2
+    a1, b2, c3, d4, : pointeur vers pointeur vers int
+    a, y7 y8 uu, t, : float

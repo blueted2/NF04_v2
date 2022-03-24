@@ -1,5 +1,4 @@
 from collections import namedtuple
-from lib2to3.pgen2.token import NEWLINE
 import ply.lex as lex
 
 reserved = {

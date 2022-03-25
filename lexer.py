@@ -49,7 +49,16 @@ def t_LIT_NUM(t):
 
 def t_ID(t):
     r'[a-zA-Z_][a-zA-Z_0-9]*'
-    t.type = reserved.get(t.value,'ID')    # Check for reserved words
+    lower_value = t.value.lower()
+    t.type = reserved.get(lower_value,'ID')    # Check for reserved words
+
+    if t.type != "ID":
+        t.value = lower_value
+    return t
+
+def t_POINTS(t):
+    r'\.\.\.'
+    t.type = "POINTS"
     return t
 
 # Error handling rule

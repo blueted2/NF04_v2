@@ -38,14 +38,12 @@ def t_NEWLINE(t):
 # A string containing ignored characters (spaces and tabs)
 t_ignore  = ' \t'
 
-LitNumVal = namedtuple('LitNumVal', ['type', 'value'])
-
 def t_LIT_NUM(t):
     r'\d?[.]?\d+'
     if '.' in t.value:
-        t.value = LitNumVal("float", float(t.value))
+        t.value = ("float", float(t.value))
     else:
-        t.value = LitNumVal("int", int(t.value))
+        t.value = ("int", int(t.value))
 
     return t
 

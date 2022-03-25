@@ -24,8 +24,6 @@ def p_var_line_decl(p):
                     | NEWLINE'''
     if len(p) == 5:
         p[0] = ("var_line_decl", p[1], p[3])
-    else:
-        p[0] = ("var_line_decl")
 
 
 def p_table_type(p):

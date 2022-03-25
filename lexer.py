@@ -9,14 +9,19 @@ reserved = {
     # 'reel'     : 'REEL',
     # 'ptr'      : 'POINTEUR',
     'pointeur' : 'POINTEUR',
-    'vers'     : 'VERS'
+    'ptr'      : 'PTR',
+    'vers'     : 'VERS',
+    'tableau'  : 'TABLEAU',
+    'tab'      : 'TAB',
+    'de'       : 'DE'
 }
 
 # List of token names.   This is always required
 tokens = [
    'LIT_NUM',
    'NEWLINE',
-   'ID'
+   'ID',
+   'POINTS'
 ] + list(reserved.values())
 
 literals = "+-*/(){}[]=:,;"

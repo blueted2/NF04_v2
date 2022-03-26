@@ -19,6 +19,8 @@ reserved = {
 # List of token names.   This is always required
 tokens = [
    'LIT_NUM',
+   'LIT_INT',
+   'LIT_FLOAT',
    'NEWLINE',
    'ID',
    'POINTS'
@@ -38,12 +40,18 @@ def t_NEWLINE(t):
 # A string containing ignored characters (spaces and tabs)
 t_ignore  = ' \t'
 
+
+t_LIT_FLOAT = 'a^'
+t_LIT_INT = 'a^'
+
 def t_LIT_NUM(t):
     r'\d?[.]?\d+'
     if '.' in t.value:
-        t.value = ("float", float(t.value))
+        t.type = "LIT_FLOAT"
+        t.value = float(t.value)
     else:
-        t.value = ("int", int(t.value))
+        t.type = "LIT_INT"
+        t.value = int(t.value)
 
     return t
 

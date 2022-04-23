@@ -1,9 +1,5 @@
 variables: 
-       1
-     2
- 3
-   4
-    a, b: entier
+    a, b: 2 entier
     c: entier
     d: reel
     e: tab[1...2] de reel

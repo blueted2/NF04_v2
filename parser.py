@@ -35,6 +35,7 @@ class MyParser:
             self.syntax_errors = []
 
         self.syntax_errors.append(error)
+        print(error)
 
     def p_program(self, p):
         '''program : variables_declaration_list'''
@@ -60,12 +61,25 @@ class MyParser:
 
 
     def p_var_section_statement_error(self, p):
-        '''variable_declaration_line : error NEWLINE'''
-        bad_token = p[1]
+        '''variable_declaration_line : id_list ':' complex_type error NEWLINE
+                                     | id_list ':' error NEWLINE
+                                     | id_list error NEWLINE
+                                     | error NEWLINE
+        '''
+
+        bad_token = list(p)[-2]
         bad_token_column = self.find_column(bad_token)
         source_line = self.source_code_lines[bad_token.lineno-1]
-        expected = "New variable declarations (ie. var1, var2: entier)"
+
+        possible_expected = [
+            "New line",
+            "Variable type (ie. 'entier' ou 'tab[1...5] de entier' ou 'ptr vers entier'",
+            "':'",
+            "New variable declarations (ie. var1, var2: entier)"
+            ]
         
+        expected = possible_expected[6 - len(p)]
+
         e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
 
         self.add_error(e)
@@ -86,17 +100,35 @@ class MyParser:
     def p_complex_type(self, p):
         '''complex_type : type_modifier_list basetype
                         | basetype'''
+
         if len(p) == 2:
             p[0] = ComplexType(p[1], [])
             return
 
         p[0] = ComplexType(p[2], p[1])
 
+    
+    def p_complex_type_error(self, p):
+        '''complex_type : error basetype
+        '''
+
+        bad_token = list(p)[-2]
+        bad_token_column = self.find_column(bad_token)
+        source_line = self.source_code_lines[bad_token.lineno-1]
+
+        expected = "Variable variable type (ie. 'entier' ou 'tab[1...5] de ' ou 'ptr vers entier')"
+
+        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
+
+        self.add_error(e)
+
 
     def p_basetype(self, p):
         '''basetype : ID
                     | REEL
                     | ENTIER'''
+        print(list(p))
+
         p[0] = p[1]
 
 

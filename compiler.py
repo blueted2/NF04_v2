@@ -33,5 +33,5 @@ if __name__ == "__main__":
 
     result, errors = compiler.compile(source_code)
 
-    for error in errors:
-        print(error, "\n")
+    # for error in errors:
+    #     print(error, "\n")

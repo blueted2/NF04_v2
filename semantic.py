@@ -1,85 +1,37 @@
-from __future__ import annotations
-from email.mime import base
-
-from parser import p_VariablesSection, p_variables_section, parser
-
-from dataclasses import dataclass
-
-from parser import p_ID, p_Program, p_PtrType
 
 
-@dataclass
-class s_Variable:
-    symbol: str
-    type: s_VarType
+from parser import build_parser, Program, TableTypeModifier
 
 
-@dataclass
-class s_Pointer:
-    pass
+def check(program_tree: Program):
+    variables = dict()
+    basetypes = ['reel', 'entier']
 
-@dataclass
-class s_Array:
-    start: int
-    end: int
-
-
-@dataclass
-class s_VarType:
-    base_type: str
-    modifiers: list[s_Pointer | s_Array]
-
-
-@dataclass
-class s_CustomType:
-    pass
-
-
-def s_variables(known_types: list[str], program_vars: p_VariablesSection) -> dict[str, s_Variable]:
-    variables: dict[str, s_Variable] = dict()
-
-    for var_line in program_vars.var_lines:
-        p_var_type = var_line.type
-
-        modifiers = []
-
-        while not isinstance(p_var_type, p_ID):
-            if isinstance(p_var_type, p_PtrType):
-                modifiers.append(s_Pointer())
-            else:
-                modifiers.append(s_Array(p_var_type.start.value, p_var_type.end.value))
-
-            p_var_type = p_var_type.type
-
-        base_type = p_var_type.value
-
-        if base_type not in known_types:
+    for var_declaration_line in program_tree.variable_declarations:
+        var_type = var_declaration_line.type
+        if var_type.base_type not in basetypes:
             raise Exception()
 
-        for id in var_line.id_list.id_list:
-            if id.value in variables:
+        for modifier in var_type.modifiers:
+            if isinstance(modifier, TableTypeModifier):
+                if modifier.start not in [0, 1]:
+                    raise Exception()
+                if modifier.start >= modifier.end:
+                    raise Exception()
+
+        for var_name in var_declaration_line.names:
+            if var_name in variables.keys():
                 raise Exception()
-            
-            variables[id.value] = s_Variable(id.value, s_VarType(base_type, modifiers))
 
-    return variables
+            variables[var_name] = var_declaration_line.type
 
-
-def generate_intermediate(program: p_Program):
-    custom_types: dict[str, s_CustomType] = dict()
-    variables: dict[str, s_Variable]
-
-    known_types = list(custom_types.keys()) + ["int", "float"]
-
-    variables = s_variables(known_types, program.variables_section)
-    
+        var_declaration_line.names
 
     print(variables)
 
-
 with open("program.NF04", 'r') as fp:
-    text = fp.read()
+    data = fp.read()    
 
-tree = parser.parse(text, debug=True)
+parser = build_parser()
 
-generate_intermediate(tree)
+check(parser.parse(data, debug=False, tracking=True))

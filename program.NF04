@@ -1,3 +1,10 @@
-variables:
-    a, b, c, d: tab [1...3] de entier
-    e, f, g, h: tab [1...3] de int
+variables: 
+       1
+     2
+ 3
+   4
+    a, b: entier
+    c: entier
+    d: reel
+    e: tab[1...2] de reel
+    f, g: ptr vers tab[1...3] de reel

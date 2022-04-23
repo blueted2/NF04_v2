@@ -1,157 +1,170 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from ast_nodes import *
+
 import ply.yacc as yacc
-from lexer import tokens
-
-### TYPES
-@dataclass
-class p_VariablesSection:
-    var_lines: list[p_VarSectionStatement]
-@dataclass
-class p_VarSectionStatement:
-    id_list: p_IDList
-    type: p_Type
-@dataclass
-class p_TableType:
-    type: p_Type
-    start: p_LitInt
-    end: p_LitInt
-
-@dataclass
-class p_PtrType:
-    type: p_Type
-
-@dataclass
-class p_LitInt:
-    value: int
-
-@dataclass
-class p_LitFloat:
-    value: float
-
-@dataclass
-class p_ID:
-    value: str
-
-@dataclass
-class p_IDList:
-    id_list: list[p_ID]
-
-@dataclass
-class p_Program:
-    variables_section: p_VariablesSection
+from errors import e_SyntaxError
+from lexer import MyLexer
 
 
+class MyParser:
+    tokens = MyLexer.tokens
 
-p_Type = p_ID | p_TableType | p_PtrType
+    def __init__(self, lexer: MyLexer, debug=False) -> None:
+        self.lexer = lexer
+        self.parser = yacc.yacc(module=self, debug=debug)
 
-### Entry Point
-def p_program(p):
-    '''program : variables_section'''
-    p[0] = p_Program(p[1])
+        self.source_code: str = ""
+        self.source_code_lines: list[str] = []
 
-
-### Type nodes
-def p_type(p):
-    '''type : id
-            | ptr_type
-            | table_type'''
-
-    p[0] = p[1]
+        self.syntax_errors: Optional[list] = None
 
 
-def p_ptr_type(p):
-    '''ptr_type : POINTEUR type
-                | POINTEUR VERS type
-                | PTR type
-                | PTR VERS type'''
-    
-    p[0] =  p_PtrType(p[len(p)-1])
+    def parse(self, source_code: str) -> Program:
+        self.source_code = source_code
+        self.source_code_lines = source_code.split("\n")
 
-def p_table_type(p):
-    '''table_type : TABLEAU '[' lit_int POINTS lit_int ']' opt_de type
-                  | TAB '[' lit_int POINTS lit_int ']' opt_de type
-    '''
+        return self.parser.parse(source_code)
 
-    p[0] = p_TableType(p[8], p[3], p[5])
-### ### ###
+    def find_column(self, token):
+        line_start = self.source_code.rfind('\n', 0, token.lexpos) + 1
+        return (token.lexpos - line_start) + 1
 
+    def add_error(self, error):
+        if self.syntax_errors is None:
+            self.syntax_errors = []
 
-### Optionals
-def p_opt_de(p):
-    '''opt_de : DE
-              | empty'''
+        self.syntax_errors.append(error)
 
-def p_opt_colon(p):
-    ''' opt_colon : ':'
-                  | empty'''
-    p[0] = "opt_colon"
-
-def p_opt_coma(p):
-    ''' opt_coma : ','
-                  | empty'''
-    p[0] = "opt_coma"
-### ### ###
-
-### Basics
-# Wrap the ID string in class. 
-def p_id(p):
-    '''id : ID'''
-    p[0] = p_ID(p[1])
-
-def p_lit_int(p):
-    '''lit_int : LIT_INT'''
-    p[0] = p_LitInt(p[1])
-
-def p_lit_float(p):
-    '''lit_float : LIT_FLOAT'''
-    p[0] = p_LitFloat(p[1])
-
-def p_empty(p):
-    '''empty : '''
-    pass
-### ### ###
+    def p_program(self, p):
+        '''program : variables_declaration_list'''
+        p[0] = Program(p[1], [])
 
 
-### Other
-# A list of IDs seperated by an optional coma
-def p_id_list(p):
-    '''id_list : id opt_coma
-               | id_list id opt_coma
-               '''
-    if isinstance(p[1], p_ID):
-        p[0] = p_IDList([])
-        new_id = p[1]
-    else:
+    def p_variables_declaration_list(self, p):
+        '''variables_declaration_list : VARIABLES opt_colon NEWLINE
+                                      | variables_declaration_list variable_declaration_line
+                                      | variables_declaration_list NEWLINE'''
+        if len(p) == 4:
+            p[0] = []
+            return
+
         p[0] = p[1]
-        new_id = p[2]
-
-    p[0].id_list.append(new_id)
-
-### ### ###
+        if p[2] != "\n":
+            p[0].append(p[2])
 
 
-### Variable declaration
-def p_variables_section(p):
-    ''' variables_section : VARIABLES opt_colon NEWLINE
-                          | variables_section var_section_statement'''
-
-    # First time 
-    if len(p) == 4:
-        p[0] = p_VariablesSection([])
-        return
-    
-    p[0] = p[1]
-    p[0].var_lines.append(p[2])
+    def p_var_section_statement(self, p):
+        '''variable_declaration_line : id_list ':' complex_type NEWLINE'''
+        p[0] = VariableDeclarationLine(p[1], p[3])
 
 
-def p_var_section_statement(p):
-    '''var_section_statement : id_list ':' type NEWLINE'''
-    p[0] = p_VarSectionStatement(p[1], p[3])
+    def p_var_section_statement_error(self, p):
+        '''variable_declaration_line : error NEWLINE'''
+        bad_token = p[1]
+        bad_token_column = self.find_column(bad_token)
+        source_line = self.source_code_lines[bad_token.lineno-1]
+        expected = "New variable declarations (ie. var1, var2: entier)"
+        
+        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
 
-### ### ###
+        self.add_error(e)
+
+    # A list of IDs seperated by an optional coma
+    def p_id_list(self, p):
+        '''id_list : ID opt_coma
+                   | id_list ID opt_coma
+        '''
+
+        if type(p[1]) is list:
+            p[0] = p[1] + [p[2]]
+            return
+
+        p[0] = [p[1]]
 
 
+    def p_complex_type(self, p):
+        '''complex_type : type_modifier_list basetype
+                        | basetype'''
+        if len(p) == 2:
+            p[0] = ComplexType(p[1], [])
+            return
 
-parser = yacc.yacc()
+        p[0] = ComplexType(p[2], p[1])
+
+
+    def p_basetype(self, p):
+        '''basetype : ID
+                    | REEL
+                    | ENTIER'''
+        p[0] = p[1]
+
+
+    def p_type_modifier_list(self, p):
+        '''type_modifier_list : type_modifier
+                              | type_modifier_list type_modifier'''
+        
+        if len(p) == 2:
+            p[0] = [p[1]]
+            return
+
+        p[0] = p[1]
+        p[0].append(p[2])
+
+
+    def p_type_modifier(self, p):
+        '''type_modifier : pointeur_vers
+                          | table_parameters'''
+        p[0] = p[1]
+
+
+    def p_pointeur_vers(self, p):
+        '''pointeur_vers : POINTEUR VERS
+                         | POINTEUR
+                         | PTR VERS
+                         | PTR'''
+        p[0] = PtrTypeModifier()
+
+    def p_table_parameters(self, p):
+        '''table_parameters : tab '[' lit_int POINTS lit_int ']' opt_de'''
+
+        p[0] = TableTypeModifier(p[3].value, p[5].value)
+
+    def p_tab(self, p):
+        '''tab : TABLEAU
+            | TAB'''
+        pass
+
+    ### Optionals
+    def p_opt_de(self, p):
+        '''opt_de : DE
+                  | empty'''
+
+    def p_opt_colon(self, p):
+        ''' opt_colon : ':'
+                      | empty'''
+        p[0] = "opt_colon"
+
+    def p_opt_coma(self, p):
+        ''' opt_coma : ','
+                     | empty'''
+        p[0] = "opt_coma"
+    ### ### ###
+
+    ### Basics
+    def p_lit_int(self, p):
+        '''lit_int : LIT_INT'''
+        p[0] = LitInt(p[1])
+
+    def p_lit_float(self, p):
+        '''lit_float : LIT_FLOAT'''
+        p[0] = LitFloat(p[1])
+
+    def p_empty(self, p):
+        '''empty : '''
+        pass
+    ### ### ###
+
+
+    def p_error(self, token):
+        pass

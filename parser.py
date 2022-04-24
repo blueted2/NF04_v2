@@ -41,37 +41,16 @@ class MyParser:
 
 
     def p_variables_declaration_list(self, p):
-        '''variables_declaration_list : VARIABLES opt_colon NEWLINE
+        '''variables_declaration_list : VARIABLES opt_colon_newline
                                       | variables_declaration_list variable_declaration_line
                                       | variables_declaration_list NEWLINE'''
-        if len(p) == 4:
+        if len(p) == 3:
             p[0] = []
             return
 
         p[0] = p[1]
         if p[2] != "\n":
             p[0].append(p[2])
-
-    def p_variables_declaration_list_error(self, p):
-        '''variables_declaration_list : VARIABLES ':' error NEWLINE
-                                      | VARIABLES error NEWLINE
-        '''
-
-        bad_token = list(p)[-2]
-        bad_token_column = self.find_column(bad_token)
-        source_line = self.source_code_lines[bad_token.lineno-1]
-
-        possible_expected = [
-            "New line",
-            "':' or new line"
-        ]
-
-        expected = possible_expected[5 - len(p)]
-
-        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
-        self.add_error(e)
-
-        p[0] = []
 
 
     def p_var_section_statement(self, p):
@@ -243,6 +222,31 @@ class MyParser:
         ''' opt_colon : ':'
                       | empty'''
         p[0] = "opt_colon"
+
+
+    def p_opt_colon_newline(self, p):
+        '''opt_colon_newline : opt_colon NEWLINE'''
+        p[0] = "opt_colon_newline"
+
+    def p_opt_colon_newline_error(self, p):
+        '''opt_colon_newline : ':' error NEWLINE
+                             | error NEWLINE
+        '''
+
+        bad_token = list(p)[-2]
+        bad_token_column = self.find_column(bad_token)
+        source_line = self.source_code_lines[bad_token.lineno-1]
+
+        possible_expected = [
+            "New line",
+            "':' or new line"
+        ]
+
+        expected = possible_expected[4 - len(p)]
+
+        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
+        self.add_error(e)
+
 
     def p_opt_coma(self, p):
         ''' opt_coma : ','

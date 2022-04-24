@@ -43,26 +43,25 @@ class MyParser:
     def p_variables_declaration_list(self, p):
         '''variables_declaration_list : VARIABLES opt_colon_newline
                                       | variables_declaration_list variable_declaration_line
-                                      | variables_declaration_list NEWLINE'''
-        if len(p) == 3:
+        '''
+        if type(p[1]) is not list:
             p[0] = []
             return
-
+        
         p[0] = p[1]
-        if p[2] != "\n":
-            p[0].append(p[2])
+        p[0].append(p[2])
 
 
     def p_var_section_statement(self, p):
-        '''variable_declaration_line : id_list ':' complex_type NEWLINE'''
+        '''variable_declaration_line : id_list ':' complex_type newline'''
         p[0] = VariableDeclarationLine(p[1], p[3])
 
 
     def p_var_section_statement_error(self, p):
-        '''variable_declaration_line : id_list ':' complex_type error NEWLINE
-                                     | id_list ':' error NEWLINE
-                                     | id_list error NEWLINE
-                                     | error NEWLINE
+        '''variable_declaration_line : id_list ':' complex_type error newline
+                                     | id_list ':' error newline
+                                     | id_list error newline
+                                     | error newline
         '''
 
         bad_token = list(p)[-2]
@@ -225,12 +224,12 @@ class MyParser:
 
 
     def p_opt_colon_newline(self, p):
-        '''opt_colon_newline : opt_colon NEWLINE'''
+        '''opt_colon_newline : opt_colon newline'''
         p[0] = "opt_colon_newline"
 
     def p_opt_colon_newline_error(self, p):
-        '''opt_colon_newline : ':' error NEWLINE
-                             | error NEWLINE
+        '''opt_colon_newline : ':' error newline
+                             | error newline
         '''
 
         bad_token = list(p)[-2]
@@ -266,6 +265,14 @@ class MyParser:
     def p_empty(self, p):
         '''empty : '''
         pass
+
+    # Many newlines are equivalent to a single newline
+    def p_newline(self, p):
+        '''newline : newline NEWLINE
+                   | NEWLINE
+        '''
+        p[0] = "\n"
+
     ### ### ###
 
 

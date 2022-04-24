@@ -2,7 +2,7 @@ import sys
 from typing import Optional, Tuple
 from lexer import MyLexer
 from parser import MyParser
-from semantics import verify_semantics
+from semantics import MySemantics
 
 class MyCompiler:
     def __init__(self, lexer: Optional[MyLexer] = None, parser: Optional[MyParser] = None) -> None:
@@ -17,9 +17,11 @@ class MyCompiler:
         if self.parser.syntax_errors:
             return "", self.parser.syntax_errors
 
-        success, errors = verify_semantics(program)
+        semantics = MySemantics()
+        success, errors = semantics.verify_semantics(program)
 
         if not success:
+            print("error")
             return "", errors
 
         return "", []

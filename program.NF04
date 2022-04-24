@@ -1,6 +1,6 @@
-variables: 
-    a, b: 2 entier
-    c: entier
+variables : 2
+    a, b: entier
+    c: ptr vers ptr vers entier
     d: reel
     e: tab[1...2] de reel
-    f, g: ptr vers tab[1...3] de reel
+    f: ptr vers reel

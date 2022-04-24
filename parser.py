@@ -12,28 +12,26 @@ class MyParser:
 
     def __init__(self, lexer: MyLexer, debug=False) -> None:
         self.lexer = lexer
-        self.parser = yacc.yacc(module=self, debug=debug)
+        self.parser = yacc.yacc(module=self)
+        self.debug = debug
 
         self.source_code: str = ""
         self.source_code_lines: list[str] = []
 
-        self.syntax_errors: Optional[list] = None
+        self.syntax_errors: list[e_SyntaxError] = []
 
 
     def parse(self, source_code: str) -> Program:
         self.source_code = source_code
         self.source_code_lines = source_code.split("\n")
 
-        return self.parser.parse(source_code)
+        return self.parser.parse(source_code, debug=self.debug)
 
     def find_column(self, token):
         line_start = self.source_code.rfind('\n', 0, token.lexpos) + 1
         return (token.lexpos - line_start) + 1
 
     def add_error(self, error):
-        if self.syntax_errors is None:
-            self.syntax_errors = []
-
         self.syntax_errors.append(error)
         print(error)
 
@@ -53,6 +51,27 @@ class MyParser:
         p[0] = p[1]
         if p[2] != "\n":
             p[0].append(p[2])
+
+    def p_variables_declaration_list_error(self, p):
+        '''variables_declaration_list : VARIABLES ':' error NEWLINE
+                                      | VARIABLES error NEWLINE
+        '''
+
+        bad_token = list(p)[-2]
+        bad_token_column = self.find_column(bad_token)
+        source_line = self.source_code_lines[bad_token.lineno-1]
+
+        possible_expected = [
+            "New line",
+            "':' or new line"
+        ]
+
+        expected = possible_expected[5 - len(p)]
+
+        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
+        self.add_error(e)
+
+        p[0] = []
 
 
     def p_var_section_statement(self, p):
@@ -116,7 +135,7 @@ class MyParser:
         bad_token_column = self.find_column(bad_token)
         source_line = self.source_code_lines[bad_token.lineno-1]
 
-        expected = "Variable variable type (ie. 'entier' ou 'tab[1...5] de ' ou 'ptr vers entier')"
+        expected = "Variable type (ie. 'entier' ou 'tab[1...5] de ' ou 'ptr vers entier')"
 
         e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
 
@@ -127,7 +146,6 @@ class MyParser:
         '''basetype : ID
                     | REEL
                     | ENTIER'''
-        print(list(p))
 
         p[0] = p[1]
 
@@ -150,17 +168,62 @@ class MyParser:
         p[0] = p[1]
 
 
+    def p_ptr(self, p):
+        '''ptr : POINTEUR
+               | PTR
+        '''
+
+
     def p_pointeur_vers(self, p):
-        '''pointeur_vers : POINTEUR VERS
-                         | POINTEUR
-                         | PTR VERS
-                         | PTR'''
+        '''pointeur_vers : ptr opt_vers'''
         p[0] = PtrTypeModifier()
+
+    def p_pointeur_vers_error(self, p):
+        '''pointeur_vers : ptr error'''
+
+        bad_token = p[2]
+        bad_token_column = self.find_column(bad_token)
+        source_line = self.source_code_lines[bad_token.lineno-1]
+
+        expected = "'vers' ou type du pointeur"
+
+        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
+
+        self.add_error(e)
+
 
     def p_table_parameters(self, p):
         '''table_parameters : tab '[' lit_int POINTS lit_int ']' opt_de'''
 
         p[0] = TableTypeModifier(p[3].value, p[5].value)
+
+    def p_table_parameters_error(self, p):
+        '''table_parameters : tab '[' lit_int POINTS lit_int ']' error
+                            | tab '[' lit_int POINTS lit_int error
+                            | tab '[' lit_int POINTS error
+                            | tab '[' lit_int error
+                            | tab '[' error
+                            | tab error
+        '''
+
+        bad_token = list(p)[-1]
+        bad_token_column = self.find_column(bad_token)
+        source_line = self.source_code_lines[bad_token.lineno-1]
+
+        possible_expected = [
+            "'de' ou type du tableau",
+            "']'",
+            "End of table range (positive integer)",
+            "Range seperator ('...')",
+            "Start of table range (positive integer)",
+            "'['"
+            ]
+        
+        expected = possible_expected[8 - len(p)]
+
+        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
+
+        self.add_error(e)
 
     def p_tab(self, p):
         '''tab : TABLEAU
@@ -171,6 +234,10 @@ class MyParser:
     def p_opt_de(self, p):
         '''opt_de : DE
                   | empty'''
+
+    def p_opt_vers(self, p):
+        '''opt_vers : VERS
+                    | empty'''
 
     def p_opt_colon(self, p):
         ''' opt_colon : ':'
@@ -199,4 +266,5 @@ class MyParser:
 
 
     def p_error(self, token):
+        print(token)
         pass

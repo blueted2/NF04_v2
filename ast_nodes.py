@@ -35,19 +35,11 @@ class VariableDeclarationLine(ASTNode):
     type: ComplexType
 
 
-@dataclass
-class ComplexType(ASTNode):
-    base_type: str
-    modifiers: list[TypeModifier]
-
-
-@dataclass 
-class TypeModifier(ASTNode): pass
-
+class ComplexType(ASTNode): pass
 
 @dataclass
-class PtrTypeModifier(TypeModifier): pass
-
+class BaseType(ComplexType):
+    name: str
 
 @dataclass
 class PtrType(ComplexType):
@@ -55,14 +47,9 @@ class PtrType(ComplexType):
 
 @dataclass
 class TableType(ComplexType):
+    start: int
+    end: int
     type: ComplexType
-    start: int
-    end: int
-
-@dataclass
-class TableTypeModifier(TypeModifier):
-    start: int
-    end: int
 
 
 @dataclass

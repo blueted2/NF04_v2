@@ -50,9 +50,7 @@ class MyParser:
         p[0] = Program(p[1], p[2], [])
 
         print(list(p))
-    
-    # def p_opt_type_definitions(self, p):
-    #     '''opt_type_definitions : empty'''
+
 
     def p_opt_sub_algo_defs_list(self, p):
         '''opt_sub_algo_defs_list : sub_algo_defs_list
@@ -108,11 +106,53 @@ class MyParser:
     def p_var_declaration_line(self, p):
         '''var_declaration_line : id_list colon complex_type newline'''
         p[0] = VariableDeclarationLine(p[1], p[3])
-    
-    def _p_var_declaration_line_type_error(self, p):
-        '''var_declaration_line : id_list ':' error NEWLINE'''
-        error_type = "Invalid type"
-        self.add_syntax_error(p[3], error_type=error_type)
+
+
+    def p_complex_type(self, p):
+        '''complex_type : basetype
+                        | table_type
+                        | pointer_type
+        '''
+        p[0] = p[1]
+
+    def p_complex_type_error(self, p):
+        '''complex_type : error'''
+        self.add_syntax_error(p[1], expected="Complex type")
+
+    def p_basetype(self, p):
+        '''basetype : ID
+                    | REEL
+                    | ENTIER'''
+        p[0] = p[1]
+
+    def p_pointer_type(self, p):
+        '''pointer_type : ptr complex_type'''
+        p[0] = PtrType(p[2])
+
+
+    def p_table_type(self, p):
+        '''table_type : tab '[' lit_int POINTS lit_int ']' opt_de complex_type  '''
+        p[0] = TableType(p[3], p[5], p[8])
+
+    def p_table_type_error_closing(self, p):
+        '''table_type : tab '[' lit_int POINTS lit_int error'''
+        self.add_syntax_error(p[6], "Closing ']'")
+
+    def p_table_type_error_end(self, p):
+        '''table_type : tab '[' lit_int POINTS error'''
+        self.add_syntax_error(p[5], "End of range")
+
+    def p_table_type_error_points(self, p):
+        '''table_type : tab '[' lit_int error'''
+        self.add_syntax_error(p[4], "Range seperator")
+
+    def p_table_type_error_start(self, p):
+        '''table_type : tab '[' error'''
+        self.add_syntax_error(p[3], "Start of range")
+
+    def p_table_type_error_opening(self, p):
+        '''table_type : tab error'''
+        self.add_syntax_error(p[2], "Opening '['")
 
 
     def p_statements_section(self, p):
@@ -145,24 +185,6 @@ class MyParser:
         '''statement : DUMMY newline'''
         p[0] = p[1]
 
-    # def p_assignment_statement(self, p):
-    #     '''assignment_statement : unary_expression L_ARROW unary_expression newline'''
-
-    # def p_unary_expression(self, p):
-    #     '''unary_expression : unary_operator unary_expression
-    #                         | postfix_expression'''
-
-    # def p_postfix_expression(self, p):
-    #     '''postfix_expression : '''
-
-    # def p_assignment_target_expression(self, p):
-    #     '''assignment_expression : ID
-    #                              | dereference_expression
-    #     '''
-    #     p[0] = p[1]
-
-    # def p_dereference_expression(self, p):
-    #     '''dereference_expression : '''
 
 
     # A list of IDs seperated by an optional coma
@@ -176,73 +198,12 @@ class MyParser:
             return
 
         p[0] = [p[1]]
-
-
-    # def p_complex_type(self, p):
-    #     '''complex_type : type_modifier_list basetype
-    #                     | basetype'''
-
-    #     if len(p) == 2:
-    #         p[0] = ComplexType(p[1], [])
-    #         return
-
-    #     p[0] = ComplexType(p[2], p[1])
     
 
-    def p_complex_type(self, p):
-        '''complex_type : basetype
-                        | table_type
-                        | pointer_type
-        '''
-
-    # def p_table_type(self, p):
-    #     '''table_type : tab '[' lit_int POINTS lit_int ']' opt_de complex_type'''
-    #     p[0] = 
-
-    def p_pointer_type(self, p):
-        '''pointer_type : pointeur_vers complex_type'''
-        p[0] = p[2]
-
-
-
-
-    def p_type_modifier_list(self, p):
-        '''type_modifier_list : type_modifier
-                              | type_modifier_list type_modifier'''
-        
-        if len(p) == 2:
-            p[0] = [p[1]]
-            return
-
-        p[0] = p[1]
-        p[0].append(p[2])
-
-    def p_type_modifier(self, p):
-        '''type_modifier : pointeur_vers
-                          | table_parameters'''
-        p[0] = p[1]
-
-    
     def p_ptr(self, p):
-        '''ptr : POINTEUR
-               | PTR
+        '''ptr : POINTEUR opt_vers
+               | PTR opt_vers
         '''
-
-    def p_pointeur_vers(self, p):
-        '''pointeur_vers : ptr opt_vers'''
-        p[0] = PtrTypeModifier()
-
-    def p_pointeur_vers_error(self, p):
-        '''pointeur_vers : ptr error'''
-
-        bad_token = p[2]
-        expected = "'vers' ou type du pointeur"
-        self.add_syntax_error(bad_token, expected)
-
-
-    def p_table_parameters(self, p):
-        '''table_parameters : tab '[' lit_int POINTS lit_int ']' opt_de'''
-        p[0] = TableTypeModifier(p[3].value, p[5].value)
 
     def p_tab(self, p):
         '''tab : TABLEAU
@@ -271,11 +232,11 @@ class MyParser:
     ### Basics
     def p_lit_int(self, p):
         '''lit_int : LIT_INT'''
-        p[0] = LitInt(p[1])
+        p[0] = p[1]
     
     def p_lit_float(self, p):
         '''lit_float : LIT_FLOAT'''
-        p[0] = LitFloat(p[1])
+        p[0] = p[1]
 
     def p_empty(self, p):
         '''empty : '''
@@ -300,12 +261,14 @@ class MyParser:
         '''colon : error ':' '''
         self.add_syntax_error(p[1], expected="':'")
 
-    def p_basetype(self, p):
-        '''basetype : ID
-                    | REEL
-                    | ENTIER'''
+    def p_square_brackets(self, p):
+        '''l_square : '[' 
+           r_square : ']'
+        '''
 
-        p[0] = p[1]
+    def p_r_square_error(self, p):
+        '''r_square : error opt_de complex_type'''
+        self.add_syntax_error(p[1], expected="']'")
 
     ### Section Headers
     def p_algo_header(self, p):

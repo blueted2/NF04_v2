@@ -7,6 +7,8 @@ from errors import e_SyntaxError
 from lexer import MyLexer
 
 
+
+
 class MyParser:
     tokens = MyLexer.tokens
 
@@ -33,53 +35,135 @@ class MyParser:
 
     def add_error(self, error):
         self.syntax_errors.append(error)
-        print(error)
+        if self.debug:
+            print(error)
 
-    def p_program(self, p):
-        '''program : variables_declaration_list'''
-        p[0] = Program(p[1], [])
-
-
-    def p_variables_declaration_list(self, p):
-        '''variables_declaration_list : VARIABLES opt_colon_newline
-                                      | variables_declaration_list variable_declaration_line
-        '''
-        if type(p[1]) is not list:
-            p[0] = []
-            return
+    def add_syntax_error(self, bad_token, expected: Optional[str] = None, error_type: Optional[str] = None, details: Optional[str] = None):
+        col = self.find_column(bad_token)
+        line = self.source_code_lines[bad_token.lineno-1]
         
-        p[0] = p[1]
-        p[0].append(p[2])
+        self.add_error(e_SyntaxError(bad_token, col, expected, line, error_type, details))
 
 
-    def p_var_section_statement(self, p):
-        '''variable_declaration_line : id_list ':' complex_type newline'''
+    def p_program_def(self, p):
+        '''program_def : main_algo_definition opt_sub_algo_defs_list'''
+        p[0] = Program(p[1], p[2], [])
+
+        print(list(p))
+    
+    # def p_opt_type_definitions(self, p):
+    #     '''opt_type_definitions : empty'''
+
+    def p_opt_sub_algo_defs_list(self, p):
+        '''opt_sub_algo_defs_list : sub_algo_defs_list
+                                  | empty'''
+
+        p[0] = p[1] if p[1] is not None else []
+
+    def p_sub_algo_defs_list(self, p):
+        '''sub_algo_defs_list : sub_algo_definition'''
+        p[0] = [p[1]]
+    
+    def p_sub_algo_defs_list_append(self, p):
+        '''sub_algo_defs_list : sub_algo_defs_list sub_algo_definition'''
+        p[0] = p[1] + [p[2]]
+
+
+    def p_sub_algo_definition(self, p):
+        '''sub_algo_definition : SA ID colon_newline var_declaration_section statements_section'''
+        p[0] = SubAlgorithm(p[2], p[4], [], [], [])
+
+    def p_main_algo_definition(self, p):
+        '''main_algo_definition : algo_header var_declaration_section statements_section'''
+        p[0] = MainAlgorithm(p[1], p[2], p[3])
+
+
+    def p_var_declaration_section(self, p):
+        '''var_declaration_section : variables_header opt_var_declaration_list'''
+        p[0] = p[2]
+    
+    def p_var_declaration_section_error(self, p):
+        '''var_declaration_section : error var_declaration_section
+                                   | error
+        '''
+        p[0] = p[2] if len(p) == 3 else []
+        self.add_syntax_error(p[1], "Variable declaration section")
+
+
+    def p_opt_var_declaration_list(self, p):
+        '''opt_var_declaration_list : var_declaration_list
+                                    | empty
+        '''
+        p[0] = p[1] if p[1] is not None else []
+    
+    def p_var_declaration_list(self, p):
+        '''var_declaration_list : var_declaration_line'''
+        p[0] = [p[1]]
+    
+    def p_var_declaration_list_append(self, p):
+        '''var_declaration_list : var_declaration_list var_declaration_line'''
+        p[0] = p[1] + [p[2]]
+
+
+    def p_var_declaration_line(self, p):
+        '''var_declaration_line : id_list colon complex_type newline'''
         p[0] = VariableDeclarationLine(p[1], p[3])
+    
+    def _p_var_declaration_line_type_error(self, p):
+        '''var_declaration_line : id_list ':' error NEWLINE'''
+        error_type = "Invalid type"
+        self.add_syntax_error(p[3], error_type=error_type)
 
 
-    def p_var_section_statement_error(self, p):
-        '''variable_declaration_line : id_list ':' complex_type error newline
-                                     | id_list ':' error newline
-                                     | id_list error newline
-                                     | error newline
-        '''
+    def p_statements_section(self, p):
+        '''statements_section : instructions_header opt_statements_list'''
+        p[0] = p[2]
 
-        bad_token = list(p)[-2]
-        bad_token_column = self.find_column(bad_token)
-        source_line = self.source_code_lines[bad_token.lineno-1]
+    def p_opt_statements_list(self, p):
+        '''opt_statements_list : statements_list
+                               | empty'''
+        p[0] = p[1] if p[1] is not None else []
 
-        possible_expected = [
-            "New line",
-            "Variable type (ie. 'entier' ou 'tab[1...5] de entier' ou 'ptr vers entier'",
-            "':'",
-            "New variable declarations (ie. var1, var2: entier)"
-            ]
+    def p_statements_list(self, p):
+        '''statements_list : statement'''
+        p[0] = [p[1]]
+
+    def p_statements_list_append(self, p):
+        '''statements_list : statements_list statement'''
+        p[0] = p[1] + [p[2]]
+    
+    def p_statements_list_error(self, p):
+        '''statements_list : error'''
         
-        expected = possible_expected[6 - len(p)]
+        bad_token = p[1]
+        expected = "List of statements"
 
-        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
+        self.add_syntax_error(bad_token, expected)
 
-        self.add_error(e)
+
+    def p_statement(self, p):
+        '''statement : DUMMY newline'''
+        p[0] = p[1]
+
+    # def p_assignment_statement(self, p):
+    #     '''assignment_statement : unary_expression L_ARROW unary_expression newline'''
+
+    # def p_unary_expression(self, p):
+    #     '''unary_expression : unary_operator unary_expression
+    #                         | postfix_expression'''
+
+    # def p_postfix_expression(self, p):
+    #     '''postfix_expression : '''
+
+    # def p_assignment_target_expression(self, p):
+    #     '''assignment_expression : ID
+    #                              | dereference_expression
+    #     '''
+    #     p[0] = p[1]
+
+    # def p_dereference_expression(self, p):
+    #     '''dereference_expression : '''
+
 
     # A list of IDs seperated by an optional coma
     def p_id_list(self, p):
@@ -94,38 +178,32 @@ class MyParser:
         p[0] = [p[1]]
 
 
-    def p_complex_type(self, p):
-        '''complex_type : type_modifier_list basetype
-                        | basetype'''
+    # def p_complex_type(self, p):
+    #     '''complex_type : type_modifier_list basetype
+    #                     | basetype'''
 
-        if len(p) == 2:
-            p[0] = ComplexType(p[1], [])
-            return
+    #     if len(p) == 2:
+    #         p[0] = ComplexType(p[1], [])
+    #         return
 
-        p[0] = ComplexType(p[2], p[1])
-
+    #     p[0] = ComplexType(p[2], p[1])
     
-    def p_complex_type_error(self, p):
-        '''complex_type : error basetype
+
+    def p_complex_type(self, p):
+        '''complex_type : basetype
+                        | table_type
+                        | pointer_type
         '''
 
-        bad_token = list(p)[-2]
-        bad_token_column = self.find_column(bad_token)
-        source_line = self.source_code_lines[bad_token.lineno-1]
+    # def p_table_type(self, p):
+    #     '''table_type : tab '[' lit_int POINTS lit_int ']' opt_de complex_type'''
+    #     p[0] = 
 
-        expected = "Variable type (ie. 'entier' ou 'tab[1...5] de ' ou 'ptr vers entier')"
-
-        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
-
-        self.add_error(e)
+    def p_pointer_type(self, p):
+        '''pointer_type : pointeur_vers complex_type'''
+        p[0] = p[2]
 
 
-    def p_basetype(self, p):
-        '''basetype : ID
-                    | REEL
-                    | ENTIER'''
-
-        p[0] = p[1]
 
 
     def p_type_modifier_list(self, p):
@@ -139,18 +217,16 @@ class MyParser:
         p[0] = p[1]
         p[0].append(p[2])
 
-
     def p_type_modifier(self, p):
         '''type_modifier : pointeur_vers
                           | table_parameters'''
         p[0] = p[1]
 
-
+    
     def p_ptr(self, p):
         '''ptr : POINTEUR
                | PTR
         '''
-
 
     def p_pointeur_vers(self, p):
         '''pointeur_vers : ptr opt_vers'''
@@ -160,55 +236,21 @@ class MyParser:
         '''pointeur_vers : ptr error'''
 
         bad_token = p[2]
-        bad_token_column = self.find_column(bad_token)
-        source_line = self.source_code_lines[bad_token.lineno-1]
-
         expected = "'vers' ou type du pointeur"
-
-        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
-
-        self.add_error(e)
+        self.add_syntax_error(bad_token, expected)
 
 
     def p_table_parameters(self, p):
         '''table_parameters : tab '[' lit_int POINTS lit_int ']' opt_de'''
-
         p[0] = TableTypeModifier(p[3].value, p[5].value)
-
-    def p_table_parameters_error(self, p):
-        '''table_parameters : tab '[' lit_int POINTS lit_int ']' error
-                            | tab '[' lit_int POINTS lit_int error
-                            | tab '[' lit_int POINTS error
-                            | tab '[' lit_int error
-                            | tab '[' error
-                            | tab error
-        '''
-
-        bad_token = list(p)[-1]
-        bad_token_column = self.find_column(bad_token)
-        source_line = self.source_code_lines[bad_token.lineno-1]
-
-        possible_expected = [
-            "'de' ou type du tableau",
-            "']'",
-            "End of table range (positive integer)",
-            "Range seperator ('...')",
-            "Start of table range (positive integer)",
-            "'['"
-            ]
-        
-        expected = possible_expected[8 - len(p)]
-
-        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
-
-        self.add_error(e)
 
     def p_tab(self, p):
         '''tab : TABLEAU
-            | TAB'''
+               | TAB'''
         pass
 
-    ### Optionals
+
+    ### Optional keywords
     def p_opt_de(self, p):
         '''opt_de : DE
                   | empty'''
@@ -217,47 +259,20 @@ class MyParser:
         '''opt_vers : VERS
                     | empty'''
 
-    def p_opt_colon(self, p):
-        ''' opt_colon : ':'
-                      | empty'''
-        p[0] = "opt_colon"
-
-
-    def p_opt_colon_newline(self, p):
-        '''opt_colon_newline : opt_colon newline'''
-        p[0] = "opt_colon_newline"
-
-    def p_opt_colon_newline_error(self, p):
-        '''opt_colon_newline : ':' error newline
-                             | error newline
-        '''
-
-        bad_token = list(p)[-2]
-        bad_token_column = self.find_column(bad_token)
-        source_line = self.source_code_lines[bad_token.lineno-1]
-
-        possible_expected = [
-            "New line",
-            "':' or new line"
-        ]
-
-        expected = possible_expected[4 - len(p)]
-
-        e = e_SyntaxError(bad_token, bad_token_column, source_code_line=source_line, expected=expected)
-        self.add_error(e)
-
-
     def p_opt_coma(self, p):
         ''' opt_coma : ','
                      | empty'''
         p[0] = "opt_coma"
     ### ### ###
 
+    def p_colon_newline(self, p):
+        '''colon_newline : colon newline'''
+
     ### Basics
     def p_lit_int(self, p):
         '''lit_int : LIT_INT'''
         p[0] = LitInt(p[1])
-
+    
     def p_lit_float(self, p):
         '''lit_float : LIT_FLOAT'''
         p[0] = LitFloat(p[1])
@@ -266,16 +281,47 @@ class MyParser:
         '''empty : '''
         pass
 
-    # Many newlines are equivalent to a single newline
     def p_newline(self, p):
-        '''newline : newline NEWLINE
-                   | NEWLINE
-        '''
+        '''newline : NEWLINE'''
         p[0] = "\n"
+    
+    def p_newline_error(self, p):
+        '''newline : error NEWLINE'''
+        
+        bad_token = p[1]
+        expected = "New line"
 
-    ### ### ###
+        self.add_syntax_error(bad_token, expected)
+    
+    def p_colon(self, p):
+        '''colon : ':' '''
+    
+    def p_colon_error(self, p):
+        '''colon : error ':' '''
+        self.add_syntax_error(p[1], expected="':'")
 
+    def p_basetype(self, p):
+        '''basetype : ID
+                    | REEL
+                    | ENTIER'''
+
+        p[0] = p[1]
+
+    ### Section Headers
+    def p_algo_header(self, p):
+        '''algo_header : ALGO ID newline '''
+        p[0] = p[2]
+    
+    def p_algo_header_name_error(self, p):
+        '''algo_header : ALGO error'''
+        self.add_syntax_error(p[2], "Algo name")
+
+    def p_basic_headers(self, p):
+        '''variables_header    : VARIABLES colon_newline
+           instructions_header : INSTRUCTIONS colon_newline
+        '''
 
     def p_error(self, token):
+        print("parse error")
         print(token)
         pass

@@ -19,7 +19,7 @@ class MySemantics:
 
     def verify_semantics(self, program: Program) -> Tuple[bool, list]:
 
-        variable_declarations = program.variable_declarations
+        variable_declarations = program.main_algorithm.variable_declarations
 
         for var_decl_line in variable_declarations:
             names = var_decl_line.names

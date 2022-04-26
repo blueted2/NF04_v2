@@ -7,14 +7,27 @@ from typing import Optional, Tuple
 # We make this dataclass keyword-only, and give default values to span and linespan.
 @dataclass(kw_only=True)
 class ASTNode:
-    lineno: Optional[int] = None
-
+    pass
 
 @dataclass
 class Program(ASTNode):
-    variable_declarations: list[VariableDeclarationLine]
-    program_statements: list
+    main_algorithm: MainAlgorithm
+    sub_algorithms_list: list[SubAlgorithm]
+    type_definitions: list
 
+@dataclass
+class MainAlgorithm(ASTNode):
+    name: str
+    variable_declarations: list[VariableDeclarationLine]
+    statements: list
+
+@dataclass
+class SubAlgorithm(ASTNode):
+    name: str
+    variable_declarations: list[VariableDeclarationLine]
+    inputs: list[VariableDeclarationLine]
+    outputs: list[VariableDeclarationLine]
+    statements: list
 
 @dataclass
 class VariableDeclarationLine(ASTNode):
@@ -35,6 +48,16 @@ class TypeModifier(ASTNode): pass
 @dataclass
 class PtrTypeModifier(TypeModifier): pass
 
+
+@dataclass
+class PtrType(ComplexType):
+    type: ComplexType
+
+@dataclass
+class TableType(ComplexType):
+    type: ComplexType
+    start: int
+    end: int
 
 @dataclass
 class TableTypeModifier(TypeModifier):

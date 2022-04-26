@@ -2,15 +2,19 @@ import ply.lex as lex
 
 class MyLexer:
     reserved = {
-        'variables': 'VARIABLES',
-        'entier'   : 'ENTIER',
-        'reel'     : 'REEL',
-        'pointeur' : 'POINTEUR',
-        'ptr'      : 'PTR',
-        'vers'     : 'VERS',
-        'tableau'  : 'TABLEAU',
-        'tab'      : 'TAB',
-        'de'       : 'DE'
+        'variables'    : 'VARIABLES',
+        'instructions' : 'INSTRUCTIONS',
+        'entier'       : 'ENTIER',
+        'reel'         : 'REEL',
+        'pointeur'     : 'POINTEUR',
+        'ptr'          : 'PTR',
+        'vers'         : 'VERS',
+        'tableau'      : 'TABLEAU',
+        'tab'          : 'TAB',
+        'de'           : 'DE',
+        'algo'         : 'ALGO',
+        'sa'           : 'SA',
+        'dummy'        : 'DUMMY', # dummy token for testing
     }
 
     # List of token names.   This is always required
@@ -20,7 +24,8 @@ class MyLexer:
         'LIT_FLOAT',
         'NEWLINE',
         'ID',
-        'POINTS'
+        'POINTS',
+        'L_ARROW'
     ] + list(reserved.values())
 
     literals = "+-*/(){}[]=:,;"
@@ -28,12 +33,15 @@ class MyLexer:
     def __init__(self, debug = False):
         self.lexer = lex.lex(module=self, debug=debug)
 
+    def t_start_cleanup(self, t):
+        r'^\n+'
+        t.lexer.lineno += len(t.value)
+
     # Regular expression rules for simple tokens
     def t_NEWLINE(self, t):
-        r'\n'
-        t.value = "\n"
-        t.type = "NEWLINE"
+        r'\n+'
         t.lexer.lineno += len(t.value)
+        t.value = "\n"
 
         return t
 
@@ -43,6 +51,8 @@ class MyLexer:
     # Don't automaticaly match
     t_LIT_FLOAT = 'a^'
     t_LIT_INT = 'a^'
+
+    t_L_ARROW = r'<--'
 
     def t_LIT_NUM(self, t):
         r'\d?[.]?\d+'
@@ -65,7 +75,7 @@ class MyLexer:
         return t
 
     def t_POINTS(self, t):
-        r'\.\.\.'
+        r'\.\.\.?'
         t.type = "POINTS"
         return t
 

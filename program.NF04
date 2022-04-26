@@ -1,6 +1,6 @@
-variables : 2
-    a, b: entier
-    c: ptr vers ptr vers entier
-    d: reel
-    e: tab[1...2] de reel
-    f: ptr vers reel
+algo test
+variables:
+    a: tab[1...3]
+
+instructions:
+    dummy

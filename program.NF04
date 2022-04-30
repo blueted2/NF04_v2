@@ -1,13 +1,5 @@
-algo test
+algorithme name
+types:
 variables:
-    a : tab[1...3] de reel
-    a : tab[1...3] de
-    a : tab[1...3]
-    a : tab[1...3
-    a : tab[1...
-    a : tab[1
-    a : tab[
-    a : tab
-
 instructions:
-    dummy
+finalgo

@@ -13,10 +13,16 @@ class MyCompiler:
         self.parser = parser
 
     def compile(self, source_code) -> Tuple[str, list]:
+        # Add an extra line return if there isn't one at the end
+        if source_code[-1] != "\n":
+            source_code += "\n"
+
         program = self.parser.parse(source_code)
         if self.parser.syntax_errors:
             return "", self.parser.syntax_errors
 
+        # print(program)
+        
         print(f"name: {program.main_algorithm.name}")
         print(f" variables: ")
         for v in program.main_algorithm.variable_declarations:

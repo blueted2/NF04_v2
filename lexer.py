@@ -1,37 +1,55 @@
 import ply.lex as lex
 
 class MyLexer:
-    reserved = {
-        'variables'    : 'VARIABLES',
-        'instructions' : 'INSTRUCTIONS',
-        'entier'       : 'ENTIER',
-        'reel'         : 'REEL',
-        'pointeur'     : 'POINTEUR',
-        'ptr'          : 'PTR',
-        'vers'         : 'VERS',
-        'tableau'      : 'TABLEAU',
-        'tab'          : 'TAB',
-        'de'           : 'DE',
-        'algo'         : 'ALGO',
-        'sa'           : 'SA',
-        'dummy'        : 'DUMMY', # dummy token for testing
-    }
+    reserved = [
+        'TYPES',
+        'VARIABLES',
+        'INSTRUCTIONS',
+        'ENTIER',
+        'REEL',
+        'POINTEUR',
+        'TABLEAU',
+        'SUR',
+        'DE',
+        'ALGORITHME',
+        'SA',
+        'OU',
+        'ET',
+        'NON',
+        'PE',
+        'PS',
+        'POUR',
+        'ALLANT',
+        'A',
+        'PAR',
+        'PAS',
+        'FINPOUR',
+        'FINALGO',
+        'FINSA'
+    ]
 
     # List of token names.   This is always required
     tokens = [
-        'LIT_NUM',
         'LIT_INT',
         'LIT_FLOAT',
         'NEWLINE',
         'ID',
         'POINTS',
-        'L_ARROW'
-    ] + list(reserved.values())
+        'L_ARROW',
+        'EOF',
+    ] + list(reserved)
 
-    literals = "+-*/(){}[]=:,;"
+    aliases = {
+        'PTR'     : 'POINTEUR',
+        'ALGO'    : 'ALGORITHME',
+        'À'       : 'A'
+    }
+
+    literals = "+-*/(){}[]=:,;.&^%!"
 
     def __init__(self, debug = False):
         self.lexer = lex.lex(module=self, debug=debug)
+        self._has_reached_eof = False
 
     def t_start_cleanup(self, t):
         r'^\n+'
@@ -39,7 +57,7 @@ class MyLexer:
 
     # Regular expression rules for simple tokens
     def t_NEWLINE(self, t):
-        r'\n+'
+        r'\n([ ]*\n)*'
         t.lexer.lineno += len(t.value)
         t.value = "\n"
 
@@ -54,6 +72,7 @@ class MyLexer:
 
     t_L_ARROW = r'<--'
 
+
     def t_LIT_NUM(self, t):
         r'\d?[.]?\d+'
         if '.' in t.value:
@@ -66,18 +85,31 @@ class MyLexer:
         return t
 
     def t_ID(self, t):
-        r'[a-zA-Z_][a-zA-Z_0-9]*'
-        lower_value = t.value.lower()
-        t.type = self.reserved.get(lower_value,'ID')    # Check for reserved words
+        r'[a-zA-Z_À-ÿ][a-zA-Z_0-9À-ÿ]*'
+        upper_value = t.value.upper()
 
-        if t.type != "ID":
-            t.value = lower_value
+        if upper_value in self.tokens:
+            t.type = upper_value
+        elif upper_value in self.aliases:
+            t.type = self.aliases[upper_value]
+
+
+        # t.type = self.reserved.get(lower_value,'ID')    # Check for reserved words
+
         return t
 
     def t_POINTS(self, t):
         r'\.\.\.?'
         t.type = "POINTS"
         return t
+
+    def t_eof(self, t):
+        if not self._has_reached_eof:
+            self._has_reached_eof = True
+            t.type = 'EOF'
+            t.value = t.type
+            return t
+
 
     # Error handling rule
     def t_error(self, t):

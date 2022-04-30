@@ -1,4 +1,5 @@
 from typing import Optional
+from lexer import MyLexer
 
 class e_SyntaxError:
 
@@ -27,10 +28,13 @@ class e_SyntaxError:
             result += f"  {self.token.lineno} | {self.source_code_line} \n"
             result += f"  {self.arrow_line()}"
 
+        kw_str = "keyword " if self.token.type in MyLexer.reserved else ""
+
+
         if str(self.token.type) == str(self.token.value):
-            result += f"SyntaxError: Unexpected '{self.token.type}'"
+            result += f"SyntaxError: Unexpected {kw_str}'{self.token.type}'"
         else:
-            result += f"SyntaxError: Unexpected '{self.token.type}' ({repr(self.token.value)})"
+            result += f"SyntaxError: Unexpected {kw_str}'{self.token.type}' ({repr(self.token.value)})"
 
         if self.error_type is not None:
             result += f" -> {self.error_type}"

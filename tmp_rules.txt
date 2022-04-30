@@ -1,0 +1,5 @@
+expression : primary_expression
+
+
+primary_expression : ID
+                   | LIT_INT

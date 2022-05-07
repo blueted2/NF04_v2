@@ -62,23 +62,23 @@ class MyParser:
 
     def p_main_algo_definition_error_finalgo(self, p):
         '''main_algo_definition : ALGORITHME id newline opt_type_defs_section opt_variables_section statements_section error'''
-        self.add_syntax_error(p[7], "Instruction or 'FinAlgo'")
+        self.add_syntax_error(p[7], "Instruction ou 'FinAlgo'")
 
     def p_main_algo_definition_error_statements(self, p):
         '''main_algo_definition : ALGORITHME id newline opt_type_defs_section variables_section error'''
-        self.add_syntax_error(p[6], "Variable declaration or instructions section or 'FinAlgo'")
+        self.add_syntax_error(p[6], "Déclaration de variable ou section instructions ou 'FinAlgo'")
 
     def p_main_algo_definition_error_variables(self, p):
         '''main_algo_definition : ALGORITHME id newline type_defs_section error'''
-        self.add_syntax_error(p[5], "Variables section or instructions section or 'FinAlgo'")
+        self.add_syntax_error(p[5], "Section variables ou section instructions ou 'FinAlgo'")
 
     def p_main_algo_definition_error_typedef(self, p):
         '''main_algo_definition : ALGORITHME id newline error'''
-        self.add_syntax_error(p[4], "Type definitions section or variables section or instructions section or 'FinAlgo'")
+        self.add_syntax_error(p[4], "Section types ou section variables ou section instructions ou 'FinAlgo'")
     
     def p_main_algo_definition_error_name(self, p):  
         '''main_algo_definition : ALGORITHME error'''
-        self.add_syntax_error(p[2], "Algorithm Name")
+        self.add_syntax_error(p[2], "Nom de l'algorithme")
 
 
     def p_opt_type_defs_section(self, p):
@@ -168,7 +168,7 @@ class MyParser:
 
     def p_complex_type_error(self, p):
         '''complex_type : error'''
-        self.add_syntax_error(p[1], expected="Complex type")
+        self.add_syntax_error(p[1], "Type")
 
     def p_basetype(self, p):
         '''basetype : id
@@ -187,23 +187,23 @@ class MyParser:
 
     def p_table_type_error_closing(self, p):
         '''table_type : TABLEAU '[' lit_int POINTS lit_int error'''
-        self.add_syntax_error(p[6], "Closing ']'")
+        self.add_syntax_error(p[6], "Crochet droit ']'")
 
     def p_table_type_error_end(self, p):
         '''table_type : TABLEAU '[' lit_int POINTS error'''
-        self.add_syntax_error(p[5], "End of range")
+        self.add_syntax_error(p[5], "Indice de fin")
 
     def p_table_type_error_points(self, p):
         '''table_type : TABLEAU '[' lit_int error'''
-        self.add_syntax_error(p[4], "Range seperator")
+        self.add_syntax_error(p[4], "Séparateur d'indices '...'")
 
     def p_table_type_error_start(self, p):
         '''table_type : TABLEAU '[' error'''
-        self.add_syntax_error(p[3], "Start of range")
+        self.add_syntax_error(p[3], "Indice de début")
 
     def p_table_type_error_opening(self, p):
         '''table_type : TABLEAU error'''
-        self.add_syntax_error(p[2], "Opening '['")
+        self.add_syntax_error(p[2], "Crochet gauche '['")
 
 
     def p_opt_statements_section(self, p):
@@ -255,7 +255,7 @@ class MyParser:
 
     def p_function_statement_error(self, p):
         '''postfix_expression : id '(' opt_expression_list '!' opt_id_list error NEWLINE'''
-        self.add_syntax_error(p[5], "Closing ')'")
+        self.add_syntax_error(p[5], "Parenthèse droite ')'")
 
 
     def p_pour_statement(self, p):
@@ -305,7 +305,7 @@ class MyParser:
 
     def p_primary_expression_parens_error_closing(self, p):
         '''primary_expression : '(' expression error'''
-        self.add_syntax_error(p[3], "Closing ')'")
+        self.add_syntax_error(p[3], "Parenthèse droite ')'")
 
     def p_p_primary_expression_parens_error_expression(self, p):
         '''primary_expression : '(' error'''
@@ -416,7 +416,7 @@ class MyParser:
 
     def p_postfix_expression_table_error_closing(self, p):
         '''postfix_expression : postfix_expression '[' expression error'''
-        self.add_syntax_error(p[4], "Closing ']'")
+        self.add_syntax_error(p[4], "Crochet droit ']'")
 
     def p_postfix_expression_table_error_expression(self, p):
         '''postfix_expression : postfix_expression '[' error'''
@@ -430,7 +430,7 @@ class MyParser:
 
     def p_function_expression_error(self, p):
         '''function_expression : id '(' opt_expression_list error'''
-        self.add_syntax_error(p[4], "Closing ')'")
+        self.add_syntax_error(p[4], "Parenthèse droite ')'")
 
     def p_opt_id_list(self, p):
         '''opt_id_list : id_list
@@ -499,7 +499,7 @@ class MyParser:
     
     def p_newline_error(self, p):
         '''newline : error'''
-        self.add_syntax_error(p[1], "Newline")
+        self.add_syntax_error(p[1], "Nouvelle ligne")
 
 
 
@@ -508,7 +508,7 @@ class MyParser:
     
     def p_colon_error(self, p):
         '''colon : error'''
-        self.add_syntax_error(p[1], expected="':'")
+        self.add_syntax_error(p[1], expected="Deux-points ':'")
 
     def p_id(self, p):
         '''id : ID'''
@@ -524,7 +524,7 @@ class MyParser:
 
     def p_sub_algo_header_name_error(self, p):
         '''sub_algo_header : SA error'''
-        self.add_syntax_error(p[2], "Sub-algo name")
+        self.add_syntax_error(p[2], "Nom du sous-algorithme")
 
 
     def p_basic_headers(self, p):

@@ -12,7 +12,7 @@ class e_SyntaxError:
         self.details = details
 
     def line_column_str(self):
-        return f"Line {self.token.lineno}, column {self.column} \n"
+        return f"Ligne {self.token.lineno}, colonne {self.column} \n"
 
     def arrow_line(self):
         num_len = len(str(self.token.lineno))
@@ -28,23 +28,17 @@ class e_SyntaxError:
             result += f"  {self.token.lineno} | {self.source_code_line} \n"
             result += f"  {self.arrow_line()}"
 
-        kw_str = "keyword " if self.token.type in MyLexer.reserved else ""
+        opt_kw_str         = "mot clé " if self.token.type in MyLexer.reserved else ""
+        type_str           = f"'{self.token.type}' "
+        opt_value_str      = f"({repr(self.token.value)}) " if str(self.token.type) != str(self.token.value) else ""
+        opt_error_type_str = f" -> {self.error_type} " if self.error_type is not None else ""
 
-
-        if str(self.token.type) == str(self.token.value):
-            result += f"SyntaxError: Unexpected {kw_str}'{self.token.type}'"
-        else:
-            result += f"SyntaxError: Unexpected {kw_str}'{self.token.type}' ({repr(self.token.value)})"
-
-        if self.error_type is not None:
-            result += f" -> {self.error_type}"
-        
-        result += "\n"
+        result += f"Erreur de syntaxe: {opt_kw_str}{type_str}{opt_value_str}inattendu{opt_error_type_str}\n"
         
         if self.details is not None:
             result += f"{self.details}\n"
 
         if self.expected is not None:
-            result += f" -> Expected: {self.expected}"
+            result += f" -> Attendu: {self.expected}"
 
         return result

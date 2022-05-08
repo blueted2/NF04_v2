@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, InitVar, dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 
 class ASTNode: pass
 
 @dataclass(kw_only=True)
 class TrackPosition:
-    lineno: Optional[int] = None
-    lexpos: Optional[int] = None
+    lineno: int = -1
+    lexpos: int = -1
 
     s: InitVar[Optional[TrackPosition]] = None
     p: InitVar[Optional[Any]] = None
@@ -87,8 +87,7 @@ class PtrType(ComplexType):
 
 @dataclass
 class TableType(ComplexType):
-    start: int
-    end: int
+    ranges: list[Tuple[LitInt, Optional[LitInt]]]
     type: ComplexType
 
 
@@ -133,6 +132,10 @@ class BinaryDivide(BinaryOperation): pass
 class BinaryModulo(BinaryOperation): pass
 class BinaryAnd(BinaryOperation): pass
 class BinaryOr(BinaryOperation): pass
+class BinaryLT(BinaryOperation): pass
+class BinaryGT(BinaryOperation): pass
+class BinaryLTE(BinaryOperation): pass
+class BinaryGTE(BinaryOperation): pass
 
 @dataclass
 class AttributExpression(Expression):
@@ -166,3 +169,8 @@ class PourStatement(Statement):
     statements: list[Statement]
     _: KW_ONLY 
     step: Expression = LitInt(1)
+
+@dataclass
+class TantQueStatement(Statement):
+    condition: Expression
+    statements: list[Statement]

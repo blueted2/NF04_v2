@@ -25,7 +25,12 @@ class MyLexer:
         'PAS',
         'FINPOUR',
         'FINALGO',
-        'FINSA'
+        'FINSA',
+        'SOUS',
+        'TANT',
+        'QUE',
+        'FAIRE',
+        'FINTQ'
     ]
 
     # List of token names.   This is always required
@@ -37,15 +42,19 @@ class MyLexer:
         'POINTS',
         'L_ARROW',
         'EOF',
+        'LTE', # "less than equals"    -> '<='
+        'GTE', # "greater than equals" -> '>='
     ] + list(reserved)
 
     aliases = {
-        'PTR'     : 'POINTEUR',
-        'ALGO'    : 'ALGORITHME',
-        'À'       : 'A'
+        'PTR'            : 'POINTEUR',
+        'ALGO'           : 'ALGORITHME',
+        'À'              : 'A',
+        'SOUSALGO'       : 'SA',
+        'SOUSALGORITHME' : 'SA'
     }
 
-    literals = "+-*/(){}[]=:,;.&^%!"
+    literals = "+-*/(){}[]=:,;.&^%!<>"
 
     def __init__(self, debug = False):
         self.lexer = lex.lex(module=self, debug=debug)
@@ -58,7 +67,7 @@ class MyLexer:
     # Regular expression rules for simple tokens
     def t_NEWLINE(self, t):
         r'\n([ ]*\n)*'
-        t.lexer.lineno += len(t.value)
+        t.lexer.lineno += t.value.count('\n')
         t.value = "\n"
 
         return t
@@ -71,6 +80,8 @@ class MyLexer:
     t_LIT_INT = 'a^'
 
     t_L_ARROW = r'<--'
+    t_LTE = r'<='
+    t_GTE = r'>='
 
 
     def t_LIT_NUM(self, t):
@@ -90,7 +101,7 @@ class MyLexer:
 
         if upper_value in self.tokens:
             t.type = upper_value
-        elif upper_value in self.aliases:
+        elif upper_value in self.aliases.keys():
             t.type = self.aliases[upper_value]
 
 
@@ -113,7 +124,10 @@ class MyLexer:
 
     # Error handling rule
     def t_error(self, t):
-        print("Illegal character '%s'" % t.value[0])
+        char = t.value[0]
+        print(ord(char))
+        print(f"Illegal character '{char}'")
+
         t.lexer.skip(1)
         raise Exception("Illegal character: TODO: deal with this error")
         

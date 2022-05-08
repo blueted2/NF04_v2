@@ -1,6 +1,6 @@
 algorithme name
-types:
-variables:
-instructions:
+    types:
+    variables:
+        var_ptr, var2 : ptr sur tableau[1..0, 1..0, 1..0, 1..2, 1..2] de reel
+    instructions:
 finalgo
-sa 

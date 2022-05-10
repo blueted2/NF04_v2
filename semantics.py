@@ -7,6 +7,7 @@ from typing import Any, Optional, Tuple
 from ast_nodes import Program
 from errors import SemanticError, TableRangeError, TableRangeInvalidEndError
 from parser import MyParser
+from utils import get_column
 
 
 class VariableScopeType(Enum):
@@ -82,9 +83,7 @@ class MySemantics:
                 start, end = range
                 if end is not None:
                     if end.value <= start.value:
-                        col = self.parser.find_column(end)
-                        source_code_line = self.parser.source_code_lines[end.lineno - 1]
-                        e = TableRangeInvalidEndError(end, col, description="L'indice de fin ne peut pas être inférieur ou égal à l'indice de début", source_code_line=source_code_line)
+                        e = TableRangeInvalidEndError(end, description="L'indice de fin ne peut pas être inférieur ou égal à l'indice de début")
                         self.add_error(e)
 
             self.validate_var_type(var_type.type)

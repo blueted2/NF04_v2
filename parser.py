@@ -6,6 +6,7 @@ from ast_nodes import *
 import ply.yacc as yacc
 from errors import e_SyntaxError
 from lexer import MyLexer
+import errors
 
 
 
@@ -18,8 +19,6 @@ class MyParser:
         self.debug = debug
 
         self.source_code: str = ""
-        self.source_code_lines: list[str] = []
-
         self.syntax_errors: list[e_SyntaxError] = []
 
         self.incomplete_blocks: list[str] = []
@@ -27,7 +26,7 @@ class MyParser:
 
     def parse(self, source_code: str) -> Program:
         self.source_code = source_code
-        self.source_code_lines = source_code.split("\n")
+        errors.set_source_code(source_code)
 
 
         result = self.parser.parse(source_code, debug=self.debug)
@@ -35,9 +34,7 @@ class MyParser:
 
         return result
 
-    def find_column(self, token):
-        line_start = self.source_code.rfind('\n', 0, token.lexpos) + 1
-        return (token.lexpos - line_start) + 1
+
 
     def add_error(self, error):
         self.syntax_errors.append(error)
@@ -55,10 +52,7 @@ class MyParser:
                 self.incomplete_blocks.pop()
                 return
 
-        col = self.find_column(bad_token)
-        line = self.source_code_lines[bad_token.lineno-1]
-        
-        self.add_error(e_SyntaxError(bad_token, col, expected, line, error_type, details))
+        self.add_error(e_SyntaxError(bad_token, expected, error_type, details))
 
 
     def p_program_def(self, p):
@@ -222,7 +216,7 @@ class MyParser:
 
     def p_table_range_error_points(self, p):
         '''table_range : lit_int error'''
-        self.add_syntax_error(p[2], "Séparateur d'indices '...'")
+        self.add_syntax_error(p[2], "Séparateur d'indices '..'")
 
     def p_table_range_error_start(self, p):
         '''table_range : error'''

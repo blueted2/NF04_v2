@@ -59,36 +59,47 @@ class MyParser:
         '''program_def : main_algo_definition opt_sub_algo_defs_list EOF'''
         p[0] = Program(p[1], p[2])
 
-    
     def p_program_error(self, p):
         '''program_def : main_algo_definition sub_algo_defs_list error'''
         self.add_syntax_error(p[3], "Sous-algo")
 
 
     def p_main_algo_definition(self, p):
-        '''main_algo_definition : algorithme id newline type_defs_section variables_section statements_section finalgo newline'''
-        p[0] = MainAlgorithm(p[2], [], p[5], p[6])
+        '''main_algo_definition : main_algo_header opt_type_defs_section variables_section statements_section main_algo_footer'''
+        p[0] = MainAlgorithm(p[1], p[2], p[3], p[4])
 
+
+    def p_main_algo_header(self, p):
+        '''main_algo_header : algorithme id newline'''
+        self.incomplete_blocks.append("main_algo")
+        p[0] = p[2]
+
+    def p_main_algo_footer(self, p):
+        '''main_algo_footer : FINALGO newline'''
+        assert self.incomplete_blocks.pop() == "main_algo"
+
+    def p_main_algo_footer_error(self, p):
+        '''main_algo_footer : error'''
+        self.add_syntax_error(p[1], "Mot clé 'FinAlgo'")
+        assert self.incomplete_blocks.pop() == "main_algo"
+
+        
 
     def p_main_algo_definition_error_finalgo(self, p):
-        '''main_algo_definition : algorithme id newline type_defs_section variables_section statements_section error'''
-        self.add_syntax_error(p[7], "Instruction ou 'FinAlgo'")
+        '''main_algo_definition : main_algo_header opt_type_defs_section variables_section statements_section error main_algo_footer'''
+        self.add_syntax_error(p[5], "Instruction ou 'FinAlgo'")
 
     def p_main_algo_definition_error_statements(self, p):
-        '''main_algo_definition : algorithme id newline type_defs_section variables_section error'''
-        self.add_syntax_error(p[6], "Déclaration de variable ou section instructions ou 'FinAlgo'")
+        '''main_algo_definition : main_algo_header opt_type_defs_section variables_section error main_algo_footer'''
+        self.add_syntax_error(p[4], "Déclaration de variable ou section instructions")
 
     def p_main_algo_definition_error_variables(self, p):
-        '''main_algo_definition : algorithme id newline type_defs_section error'''
-        self.add_syntax_error(p[5], "Section variables ou section instructions ou 'FinAlgo'")
+        '''main_algo_definition : main_algo_header type_defs_section error main_algo_footer'''
+        self.add_syntax_error(p[3], "Déclaration de type ou section variables")
 
     def p_main_algo_definition_error_typedef(self, p):
-        '''main_algo_definition : algorithme id newline error'''
-        self.add_syntax_error(p[4], "Section types ou section variables ou section instructions ou 'FinAlgo'")
-    
-    def p_main_algo_definition_error_name(self, p):  
-        '''main_algo_definition : algorithme error'''
-        self.add_syntax_error(p[2], "Nom de l'algorithme")
+        '''main_algo_definition : main_algo_header error main_algo_footer'''
+        self.add_syntax_error(p[2], "Section types ou section variables")
 
 
     def p_opt_type_defs_section(self, p):
@@ -117,33 +128,35 @@ class MyParser:
 
 
     def p_sub_algo_definition(self, p):
-        '''sub_algo_definition : sa id newline inputs_section outputs_section variables_section statements_section FINSA newline'''
-        p[0] = SubAlgorithm(p[2], p[4], p[5], p[6], p[7])
+        '''sub_algo_definition : sub_algo_header inputs_section outputs_section variables_section statements_section sub_algo_footer'''
+        p[0] = SubAlgorithm(p[1], p[2], p[3], p[4], p[5])
 
 
-    def p_sub_algo_definition_error_finalgo(self, p):
-        '''sub_algo_definition : sa id newline inputs_section outputs_section variables_section statements_section error'''
-        self.add_syntax_error(p[8], "Instruction ou 'FinSa'")
+    def p_sub_algo_header(self, p):
+        '''sub_algo_header : sa id newline'''
+        self.incomplete_blocks.append("sub_algo")
+        p[0] = p[2]
+
+    def p_sub_algo_footer(self, p):
+        '''sub_algo_footer : FINSA newline'''
+        assert self.incomplete_blocks.pop() == "sub_algo"
+
 
     def p_sub_algo_definition_error_statements(self, p):
-        '''sub_algo_definition : sa id newline inputs_section outputs_section variables_section error'''
-        self.add_syntax_error(p[7], "Déclaration de variable ou section instructions")
+        '''sub_algo_definition : sub_algo_header inputs_section outputs_section variables_section error sub_algo_footer'''
+        self.add_syntax_error(p[5], "Déclaration de variable ou section instructions")
 
     def p_sub_algo_definition_error_variables(self, p):
-        '''sub_algo_definition : sa id newline inputs_section outputs_section error'''
-        self.add_syntax_error(p[6], "Déclaration de paramètre de sortie ou section variables")
+        '''sub_algo_definition : sub_algo_header inputs_section outputs_section error sub_algo_footer'''
+        self.add_syntax_error(p[4], "Déclaration de paramètre de sortie ou section variables")
 
     def p_sub_algo_definition_error_outputs(self, p):
-        '''sub_algo_definition : sa id newline inputs_section error'''
-        self.add_syntax_error(p[5], "Déclaration variable d'entrée ou section paramètres de sortie")
+        '''sub_algo_definition : sub_algo_header inputs_section error sub_algo_footer'''
+        self.add_syntax_error(p[3], "Déclaration variable d'entrée ou section paramètres de sortie")
 
     def p_sub_algo_definition_error_inputs(self, p):
-        '''sub_algo_definition : sa id newline error'''
-        self.add_syntax_error(p[4], "Section paramètres d'entrée")
-    
-    def p_sub_algo_definition_error_name(self, p):  
-        '''sub_algo_definition : sa error'''
-        self.add_syntax_error(p[2], "Nom du sous-algorithme")
+        '''sub_algo_definition : sub_algo_header error sub_algo_footer'''
+        self.add_syntax_error(p[2], "Section paramètres d'entrée")
 
 
     def p_variables_section(self, p):
@@ -174,8 +187,16 @@ class MyParser:
 
 
     def p_var_declaration_line(self, p):
-        '''var_declaration_line : id_list colon complex_type newline'''
+        '''var_declaration_line : id_list ':' complex_type newline'''
         p[0] = VariableDeclarationLine(p[1], p[3])
+
+    def p_var_declaration_line_error_type(self, p):
+        '''var_declaration_line : id_list ':' error NEWLINE'''
+        self.add_syntax_error(p[3], "Type")
+
+    def p_var_declaration_line_error_colon(self, p):
+        '''var_declaration_line : id_list error NEWLINE'''
+        self.add_syntax_error(p[2], "':'")
 
 
     def p_complex_type(self, p):
@@ -205,9 +226,7 @@ class MyParser:
         self.add_syntax_error(p[2], "Mot clé 'sur' ou type pointé")
 
 
-    def p_table_type(self, p):
-        '''table_type : TABLEAU '[' table_range_list ']' opt_de complex_type  '''
-        p[0] = TableType(p[3], p[6])
+    
 
     def p_table_range(self, p):
         '''table_range : lit_int POINTS lit_int
@@ -218,10 +237,6 @@ class MyParser:
         '''table_range : lit_int error'''
         self.add_syntax_error(p[2], "Séparateur d'indices '..'")
 
-    def p_table_range_error_start(self, p):
-        '''table_range : error'''
-        self.add_syntax_error(p[1], "Indice de début")
-
 
     def p_table_range_list(self, p):
         '''table_range_list : table_range'''
@@ -230,6 +245,15 @@ class MyParser:
     def p_table_range_list_append(self, p):
         '''table_range_list : table_range_list ',' table_range'''
         p[0] = p[1] + [p[3]]
+
+    def p_table_range_list_error(self, p):
+        '''table_range_list : table_range_list ',' error'''
+        self.add_syntax_error(p[3], "Dimmensions du tableau après virgule ',' '")
+
+
+    def p_table_type(self, p):
+        '''table_type : TABLEAU '[' table_range_list ']' opt_de complex_type  '''
+        p[0] = TableType(p[3], p[6], p=p)
 
     def p_table_type_error_type(self, p):
         '''table_type : TABLEAU '[' table_range_list ']' DE error'''
@@ -241,20 +265,12 @@ class MyParser:
 
     def p_table_type_error_closing(self, p):
         '''table_type : TABLEAU '[' table_range_list error'''
-        self.add_syntax_error(p[4], "Crochet droit ']'")
+        self.add_syntax_error(p[4], "Virgule ',' suivie de dimmensions du tableau ou de crochet droit ']'")
 
-    # TODO: Handle new kinds of errors vvvvv
-    # def p_table_type_error_end(self, p):
-    #     '''table_type : TABLEAU '[' lit_int POINTS error'''
-    #     self.add_syntax_error(p[5], "Indice de fin")
+    def p_table_type_error_range(self, p):
+        '''table_type : TABLEAU '[' error'''
+        self.add_syntax_error(p[3], "Dimmensions du tableau")
 
-    # def p_table_type_error_points(self, p):
-    #     '''table_type : TABLEAU '[' lit_int error'''
-    #     self.add_syntax_error(p[4], "Séparateur d'indices '...'")
-
-    # def p_table_type_error_start(self, p):
-    #     '''table_type : TABLEAU '[' error'''
-    #     self.add_syntax_error(p[3], "Indice de début")
 
     def p_table_type_error_opening(self, p):
         '''table_type : TABLEAU error'''
@@ -285,13 +301,18 @@ class MyParser:
                      | expression_statement
                      | function_statement
                      | pour_statement
-                     | tq_statement'''
+                     | tq_statement
+                     | si_statement'''
         p[0] = p[1]
 
 
     def p_assignment_statement(self, p):
-        '''assignment_statement : unary_expression L_ARROW expression newline'''
+        '''assignment_statement : expression L_ARROW expression newline'''
         p[0] = AssignmentStatement(p[1], p[3], s=p[1])
+
+    def p_assignement_statement_error(self, p):
+        '''assignment_statement : expression L_ARROW error NEWLINE'''
+        self.add_syntax_error(p[3], "Expression")
 
 
     def p_expression_statement(self, p):
@@ -300,78 +321,150 @@ class MyParser:
 
     
     def p_function_statement(self, p):
-        '''function_statement : id '(' opt_expression_list '!' opt_id_list ')' newline'''
+        '''function_statement : id '(' function_inputs_list '!' function_outputs_list ')' newline'''
         p[0] = FunctionStatement(p[1], p[3], p[5], s=p[1])
 
     def p_function_statement_error(self, p):
-        '''postfix_expression : id '(' opt_expression_list '!' opt_id_list error NEWLINE'''
-        self.add_syntax_error(p[5], "Parenthèse droite ')'")
+        '''function_statement : id '(' function_inputs_list '!' error NEWLINE'''
+        self.add_syntax_error(p[5], "Paramètres de sortie ou parenthèse droite ')'")
+
+    def p_function_outputs_list(self, p):
+        '''function_outputs_list : opt_expression_list'''
+        p[0] = p[1]
+
+    def p_function_outputs_list_error(self, p):
+        '''function_outputs_list : expression_list ',' error'''
+        self.add_syntax_error(p[3], "Paramètre de sortie après virgule ','")
 
 
     def p_pour_statement(self, p):
-        '''pour_statement : pour ID ALLANT DE expression A expression newline opt_statements_list finpour newline'''
-        p[0] = PourStatement(p[2], p[5], p[7], p[9], p=p)
+        '''pour_statement : pour_header opt_statements_list pour_footer'''
+        _id, start, end = p[1] if p[1] is not None else [None, None, None]
+        p[0] = PourStatement(_id, start, end, p[2], p=p)
 
-    def p_pour_statement_error_instruction(self, p):
-        '''pour_statement : pour ID ALLANT DE expression A expression newline opt_statements_list error'''
-        self.add_syntax_error(p[10], "Instruction ou mot clé 'FinPour'")
+    def p_pour_header(self, p):
+        '''pour_header : POUR ID ALLANT DE expression A expression newline'''
         self.incomplete_blocks.append("pour")
+        p[0] = (p[2], p[5], p[7])
 
-    # def p_pour_statement_error_finpour(self, p):
-    #     '''pour_statement : pour ID ALLANT DE expression A expression newline opt_statements_list error'''
-    #     self.add_syntax_error(p[10], "FinPour")
-    #     self.pop_pour()
-        
-
-    def p_pour_statement_error_end_expression(self, p):
-        '''pour_statement : pour ID ALLANT DE expression A error NEWLINE'''
+    def p_pour_header_error_end_expression(self, p):
+        '''pour_header : POUR ID ALLANT DE expression A error NEWLINE'''
         self.add_syntax_error(p[7], "Valeur de fin d'itération")
         self.incomplete_blocks.append("pour")
 
-    def p_pour_statement_error_a(self, p):
-        '''pour_statement : pour ID ALLANT DE expression error NEWLINE'''
+    def p_pour_header_error_a(self, p):
+        '''pour_header : POUR ID ALLANT DE expression error NEWLINE'''
         self.add_syntax_error(p[6], "Mot clé 'a'")
         self.incomplete_blocks.append("pour")
 
-    def p_pour_statement_error_start_expression(self, p):
-        '''pour_statement : pour ID ALLANT DE error NEWLINE'''
+    def p_pour_header_error_start_expression(self, p):
+        '''pour_header : POUR ID ALLANT DE error NEWLINE'''
         self.add_syntax_error(p[5], "Valeur de début d'itération")
         self.incomplete_blocks.append("pour")
 
-    def p_pour_statement_error_de(self, p):
-        '''pour_statement : pour ID ALLANT error NEWLINE'''
+    def p_pour_header_error_de(self, p):
+        '''pour_header : POUR ID ALLANT error NEWLINE'''
         self.add_syntax_error(p[4], "Mot clé 'de'")
         self.incomplete_blocks.append("pour")
 
-    def p_pour_statement_error_allant(self, p):
-        '''pour_statement : pour ID error NEWLINE'''
+    def p_pour_header_error_allant(self, p):
+        '''pour_header : POUR ID error NEWLINE'''
         self.add_syntax_error(p[3], "Mot clé 'allant'")
         self.incomplete_blocks.append("pour")
 
-    def p_pour_statement_error_variable(self, p):
-        '''pour_statement : pour error NEWLINE'''
+    def p_pour_header_error_variable(self, p):
+        '''pour_header : POUR error NEWLINE'''
         self.add_syntax_error(p[2], "Variable d'itération")
         self.incomplete_blocks.append("pour")
+
+
+    def p_pour_footer(self, p):
+        '''pour_footer : FINPOUR newline'''
+        assert self.incomplete_blocks.pop() == "pour"
+
+    def p_pour_footer_error(self, p):
+        '''pour_footer : error'''
+        self.add_syntax_error(p[1], "Mot clé 'FinPour'")
+        assert self.incomplete_blocks.pop() == "pour"
         
 
     def p_tq_statement(self, p):
-        '''tq_statement : tq expression FAIRE newline opt_statements_list FINTQ newline'''
-        p[0] = TantQueStatement(p[2], p[5])
+        '''tq_statement : tq_header opt_statements_list tq_footer'''
+        p[0] = TantQueStatement(p[1], p[2])
 
-    def p_tq_statement_fintq(self, p):
-        '''tq_statement : tq expression FAIRE newline opt_statements_list error NEWLINE'''
-        self.add_syntax_error(p[6], "Instruction ou mot clé 'FinTq'")
+    def p_tq_header(self, p):
+        '''tq_header : TANT QUE expression FAIRE newline'''
+        p[0] = p[3]
         self.incomplete_blocks.append("tant_que")
 
-    def p_tq_statement_faire(self, p):
-        '''tq_statement : tq expression error NEWLINE'''
-        self.add_syntax_error(p[3], "Mot clé 'Faire'")
+    def p_tq_header_error_faire(self, p):
+        '''tq_header : TANT QUE expression error NEWLINE'''
+        self.add_syntax_error(p[4], "Mot clé 'Faire'")
         self.incomplete_blocks.append("tant_que")
 
-    def p_tq_statement_expression(self, p):
-        '''tq_statement : tq error NEWLINE'''
-        self.add_syntax_error(p[2], "Condition de boucle")
+    def p_tq_header_error_expression(self, p):
+        '''tq_header : TANT QUE error NEWLINE'''
+        self.add_syntax_error(p[3], "Condition de boucle")
         self.incomplete_blocks.append("tant_que")
+
+    def p_tq_header_error_que(self, p):
+        '''tq_header : TANT error NEWLINE'''
+        self.add_syntax_error(p[2], "Mot clé 'que'")
+        self.incomplete_blocks.append("tant_que")
+
+    def p_tq_footer(self, p):
+        '''tq_footer : FINTQ newline'''
+        assert self.incomplete_blocks.pop() == "tant_que"
+        
+    def p_tq_footer_error(self, p):
+        '''tq_footer : error'''
+        self.add_syntax_error(p[1], "Mot clé 'FinTq'")
+        assert self.incomplete_blocks.pop() == "tant_que"
+
+
+    def p_si_statement(self, p):
+        '''si_statement : SI condition_faire_instructions opt_sinonsi_list opt_sinon_section FINSI newline'''
+        conditional_blocks = [p[2]] + p[3]
+        default_block = p[4]
+        p[0] = SiStatement(conditional_blocks, default_block, p=p)
+
+    def p_si_statement_error(self, p):
+        '''si_statement : SI condition_faire_instructions opt_sinonsi_list opt_sinon_section error NEWLINE'''
+        self.add_syntax_error(p[5], "Instruction ou mot clé 'FinSi'")
+        self.incomplete_blocks.append("si")
+
+
+
+    
+    def p_opt_sinonsi_list(self, p):
+        '''opt_sinonsi_list : sinonsi_list
+                            | empty'''
+        p[0] = p[1] if p[1] is not None else []
+
+    def p_opt_sinon_section(self, p):
+        '''opt_sinon_section : sinon_section
+                             | empty'''
+        p[0] = p[1] if p[1] is not None else []
+
+    def p_sinon_section(self, p):
+        '''sinon_section : SINON newline opt_statements_list'''
+        p[0] = p[3]
+
+    def p_sinonsi_list(self, p):
+        '''sinonsi_list : sinonsi_section'''
+        p[0] = [p[1]]
+
+    def p_sinonsi_list_append(self, p):
+        '''sinonsi_list : sinonsi_list sinonsi_section'''
+        p[0] = p[1] + [p[2]]
+
+    def p_sinonsi_section(self, p):
+        '''sinonsi_section : SINONSI condition_faire_instructions'''
+        p[0] = p[2]
+
+    def p_condition_faire_instructions(self, p):
+        '''condition_faire_instructions : expression FAIRE newline opt_statements_list'''
+        p[0] = ConditionalBlock(p[1], p[4])
 
 
     def p_primary_expression(self, p):
@@ -528,12 +621,27 @@ class MyParser:
 
 
     def p_function_expression(self, p):
-        '''function_expression : id '(' opt_expression_list ')' '''
+        '''function_expression : id '(' function_inputs_list ')' '''
         p[0] = FunctionExpression(p[1], p[3], s=p[1])
 
     def p_function_expression_error(self, p):
-        '''function_expression : id '(' opt_expression_list error'''
-        self.add_syntax_error(p[4], "Parenthèse droite ')'")
+        '''function_expression : id '(' expression_list error '''
+        self.add_syntax_error(p[4], "Virgule ',' suivie de paramètre d'entrée ou parenthèse droite ')'")
+
+    def p_function_expression_error_no_params(self, p):
+        '''function_expression : id '(' error ')' '''
+        self.add_syntax_error(p[3], "Paramètres d'entrée ou parenthèse droite ')'")
+
+    def p_function_inputs_list(self, p):
+        '''function_inputs_list : opt_expression_list'''
+        p[0] = p[1]
+
+    def p_function_inputs_list_error(self, p):
+        '''function_inputs_list : expression_list ',' error '''
+        self.add_syntax_error(p[3], "Paramètre d'entrée après virgule ','")
+
+
+    
 
     def p_opt_id_list(self, p):
         '''opt_id_list : id_list
@@ -568,9 +676,6 @@ class MyParser:
         '''expression_list : expression_list ',' expression'''
         p[0] = p[1] + [p[3]]
 
-    def p_expression_list_append_error(self, p):
-        '''expression_list : expression_list ',' error'''
-        self.add_syntax_error(p[3], "Expression")
 
     ### Optional keywords
     def p_opt_de(self, p):
@@ -601,7 +706,7 @@ class MyParser:
     
     
     def p_newline_error(self, p):
-        '''newline : error'''
+        '''newline : error NEWLINE'''
         self.add_syntax_error(p[1], "Nouvelle ligne")
 
 
@@ -633,9 +738,6 @@ class MyParser:
 
     def p_pour(self, p):
         '''pour : POUR'''
-
-    def p_finpour(self, p):
-        '''finpour : FINPOUR'''
 
     def p_tq(self, p):
         '''tq : TANT QUE'''

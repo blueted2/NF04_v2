@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import KW_ONLY, InitVar, dataclass
+from dataclasses import KW_ONLY, InitVar, dataclass, field
+from email.policy import default
 from typing import Any, Optional, Tuple
 
 
@@ -172,5 +173,16 @@ class PourStatement(Statement):
 
 @dataclass
 class TantQueStatement(Statement):
+    condition: Expression
+    statements: list[Statement]
+
+@dataclass
+class SiStatement(Statement):
+    conditional_blocks: list[ConditionalBlock]
+    default_block: list[Statement] = field(default_factory=list)
+    
+
+@dataclass
+class ConditionalBlock:
     condition: Expression
     statements: list[Statement]

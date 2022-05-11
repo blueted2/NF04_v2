@@ -30,7 +30,11 @@ class MyLexer:
         'TANT',
         'QUE',
         'FAIRE',
-        'FINTQ'
+        'FINTQ',
+        'SI',
+        'SINONSI',
+        'SINON',
+        'FINSI'
     ]
 
     # List of token names.   This is always required

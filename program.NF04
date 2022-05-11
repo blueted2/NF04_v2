@@ -1,6 +1,8 @@
 algorithme name
     types:
     variables:
-        var_ptr, var2 : ptr sur tableau[1..0, 1..0, 1..0, 1..2, 1..2] de reel
+        tab, tab2 : tableau[0..23, 0..23] de réel
     instructions:
+        pour i allant de 1 à 12
+        finpour
 finalgo

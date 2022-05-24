@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, InitVar, dataclass, field
-from email.policy import default
 from typing import Any, Optional, Tuple
 
-
-class ASTNode: pass
 
 @dataclass(kw_only=True)
 class TrackPosition:
@@ -34,65 +31,109 @@ class TrackPosition:
             self.lexpos = p.lexpos(1)
 
 @dataclass
-class Expression(ASTNode, TrackPosition): pass
+class Expression(TrackPosition): 
+    _ : KW_ONLY
+    is_assignable: bool = False
+    expr_type: Optional[VariableType] = field(init=False, default=None)
+
     
 @dataclass
 class LitInt(Expression):
-    value: int
+    value: str
 
 @dataclass
 class LitFloat(Expression):
-    value: float
-
-@dataclass
-class ID(ASTNode, TrackPosition):
     value: str
 
+@dataclass
+class LitChar(Expression):
+    value: str
 
 @dataclass
-class Program(ASTNode):
+class LitBool(Expression):
+    value: str
+
+@dataclass
+class ID(Expression):
+    value: str
+
+    def __post_init__(self, s: Optional[TrackPosition], p: Optional[Any]):
+        self.is_assignable = True
+        return super().__post_init__(s, p)
+
+
+@dataclass
+class Program:
     main_algorithm: MainAlgorithm
     sub_algorithms_list: list[SubAlgorithm]
 
 @dataclass
-class MainAlgorithm(ASTNode):
+class MainAlgorithm:
     name: ID
     type_definitions: list
-    variable_declarations: list[VariableDeclarationLine]
+    variable_declarations: list[VariableDeclaration]
     statements: list[Statement]
 
 
 @dataclass
-class SubAlgorithm(ASTNode):
+class SubAlgorithm:
     name: ID
-    inputs: list[VariableDeclarationLine]
-    outputs: list[VariableDeclarationLine]
-    variable_declarations: list[VariableDeclarationLine]
+    inputs: list[VariableDeclaration]
+    outputs: list[VariableDeclaration]
+    variable_declarations: list[VariableDeclaration]
     statements: list[Statement]
 
-@dataclass
-class VariableDeclarationLine(ASTNode):
-    names: list[ID]
-    type: ComplexType
-
-
-class ComplexType(ASTNode, TrackPosition): pass
 
 @dataclass
-class BaseType(ComplexType):
+class VariableDeclaration:
     name: ID
+    type: VariableType
+
+class VariableType(TrackPosition): pass
 
 @dataclass
-class PtrType(ComplexType):
-    type: ComplexType
+class BaseType(VariableType):
+    value: str
+
+    def __str__(self) -> str:
+        return f"<{self.value}>"
 
 @dataclass
-class TableType(ComplexType):
-    ranges: list[Tuple[LitInt, Optional[LitInt]]]
-    type: ComplexType
+class PtrType(VariableType):
+    type: VariableType
+
+    def __str__(self) -> str:
+        return f"<Pointeur sur {self.type}>"
+
+@dataclass
+class TableType(VariableType):
+    ranges: list[TableRange]
+    type: VariableType
+
+    def __str__(self) -> str:
+        return f"<Tableau[{', '.join(str(range) for range in self.ranges)}] de {self.type}>"
+        
+@dataclass
+class TableRange:
+    start: LitInt
+    end: Optional[LitInt]
+
+    def __str__(self) -> str:
+        return f"{self.start.value}..{self.end.value if self.end is not None else ''}"
+
+    def is_equivalent_to(self, other: TableRange) -> bool:
+        if int(self.start.value) != int(other.start.value):
+            return False
+        
+        # Yes this is weird, but it works. First I check if both ends are None, in which case we know they are equivalent. 
+        if self.end is None or other.end is None:
+            return True
+
+        return int(self.end.value) == int(other.end.value)
 
 
-class Statement(ASTNode, TrackPosition): pass
+
+class Statement(TrackPosition): pass
 
 @dataclass
 class AssignmentStatement(Statement):
@@ -113,10 +154,16 @@ class SubExpression(Expression):
 @dataclass
 class UnaryOperation(Expression):
     expression: Expression
+    operator: Operator
+
     
 class UnaryPlus(UnaryOperation): pass
 class UnaryMinus(UnaryOperation): pass
-class UnaryDereference(UnaryOperation): pass
+class UnaryDereference(UnaryOperation):
+    def __post_init__(self, s: Optional[TrackPosition], p: Optional[Any]):
+        self.is_assignable = self.expression.is_assignable
+        return super().__post_init__(s, p)
+
 class UnaryPointer(UnaryOperation): pass
 class UnaryNot(UnaryOperation): pass
 
@@ -125,12 +172,18 @@ class UnaryNot(UnaryOperation): pass
 class BinaryOperation(Expression): 
     left: Expression
     right: Expression
+    operator: Operator
+
+@dataclass
+class Operator(TrackPosition):
+    operator: str
 
 class BinaryPlus(BinaryOperation): pass
 class BinaryMinus(BinaryOperation): pass
 class BinaryTimes(BinaryOperation): pass
 class BinaryDivide(BinaryOperation): pass
 class BinaryModulo(BinaryOperation): pass
+class BinaryEq(BinaryOperation): pass
 class BinaryAnd(BinaryOperation): pass
 class BinaryOr(BinaryOperation): pass
 class BinaryLT(BinaryOperation): pass
@@ -139,14 +192,22 @@ class BinaryLTE(BinaryOperation): pass
 class BinaryGTE(BinaryOperation): pass
 
 @dataclass
-class AttributExpression(Expression):
+class AttributeExpression(Expression):
     expression: Expression
-    attribut: ID
+    attribute: ID
+
+    def __post_init__(self, s: Optional[TrackPosition], p: Optional[Any]):
+        self.is_assignable = True
+        return super().__post_init__(s, p)
 
 @dataclass
 class TableExpression(Expression):
-    expression: Expression
-    index: Expression
+    table_expression: Expression
+    indexes: list[Expression]
+
+    def __post_init__(self, s: Optional[TrackPosition], p: Optional[Any]):
+        self.is_assignable = True
+        return super().__post_init__(s, p)
 
 
 @dataclass
@@ -167,9 +228,8 @@ class PourStatement(Statement):
     variable: ID
     start: Expression
     end: Expression
+    step: Optional[LitInt]
     statements: list[Statement]
-    _: KW_ONLY 
-    step: Expression = LitInt(1)
 
 @dataclass
 class TantQueStatement(Statement):
@@ -186,3 +246,8 @@ class SiStatement(Statement):
 class ConditionalBlock:
     condition: Expression
     statements: list[Statement]
+
+@dataclass
+class CustomTypeDefinition:
+    name: ID
+    attributes: list[VariableDeclaration]

@@ -4,10 +4,11 @@ from typing import Optional
 from ast_nodes import *
 
 import ply.yacc as yacc
-from errors import e_SyntaxError
+from ply.lex import LexToken
+from errors import LitCharError, NodeSyntaxError, TokenSyntaxError
 from lexer import MyLexer
 import errors
-
+import utils
 
 
 class MyParser:
@@ -19,7 +20,7 @@ class MyParser:
         self.debug = debug
 
         self.source_code: str = ""
-        self.syntax_errors: list[e_SyntaxError] = []
+        self.syntax_errors: list[TokenSyntaxError] = []
 
         self.incomplete_blocks: list[str] = []
 
@@ -30,7 +31,25 @@ class MyParser:
 
 
         result = self.parser.parse(source_code, debug=self.debug)
-        print(self.incomplete_blocks)
+
+        if len(self.incomplete_blocks) == 0:
+            if self.debug: print("\n----- END OF DEBUG -----\n")
+            return result
+        
+        error_token = utils.manual_error_token("EOF", "EOF", self.lexer.lexer.lexpos, self.lexer.lexer.lineno)
+        
+        for block in self.incomplete_blocks[::-1]:
+            if block == "main_algo":
+                self.add_syntax_error(error_token, "Mot clé 'FinAlgo'")
+            elif block == "sub_algo":
+                self.add_syntax_error(error_token, "Mot clé 'FinSA'")
+            elif block == "si":
+                self.add_syntax_error(error_token, "Mot clé 'FinSi'")
+            elif block == "tant_que":
+                self.add_syntax_error(error_token, "Mot clé 'FinTQ'")
+
+        if self.debug:
+            print("\n----- END OF DEBUG -----\n")
 
         return result
 
@@ -41,18 +60,18 @@ class MyParser:
         if self.debug:
             print(error)
 
-    def add_syntax_error(self, bad_token, expected: Optional[str] = None, error_type: Optional[str] = None, details: Optional[str] = None):
+    def add_syntax_error(self, error_token, expected: Optional[str] = None, error_type: Optional[str] = None, details: Optional[str] = None):
         
         # Suppress errors about unexpected "FinTq" and "FinPour" if we have encountered un incomplete block of the corresponding type
         if len(self.incomplete_blocks) > 0:
-            if self.incomplete_blocks[-1] == "pour" and bad_token.type == "FINPOUR":
+            if self.incomplete_blocks[-1] == "pour" and error_token.type == "FINPOUR":
                 self.incomplete_blocks.pop()
                 return
-            if self.incomplete_blocks[-1] == "tant_que" and bad_token.type == "FINTQ":
+            if self.incomplete_blocks[-1] == "tant_que" and error_token.type == "FINTQ":
                 self.incomplete_blocks.pop()
                 return
 
-        self.add_error(e_SyntaxError(bad_token, expected, error_type, details))
+        self.add_error(TokenSyntaxError(error_token, expected, error_type, details))
 
 
     def p_program_def(self, p):
@@ -108,9 +127,57 @@ class MyParser:
         p[0] = p[1] if p[1] is not None else []
 
     def p_type_defs_section(self, p):
-        '''type_defs_section : types_header'''
-        p[0] = p[1]
+        '''type_defs_section : types_header opt_type_defs_list'''
+        p[0] = p[2]
 
+    def p_opt_type_defs_list(self, p):
+        '''opt_type_defs_list : type_defs_list
+                              | empty'''
+        p[0] = p[1] if p[1] is not None else []
+
+    def p_type_defs_list(self, p):
+        '''type_defs_list : type_def'''
+        p[0] = [p[1]]
+
+    def p_type_defs_list_append(self, p):
+        '''type_defs_list : type_defs_list type_def'''
+        p[0] = p[1] + [p[2]]
+
+    def p_type_def(self, p):
+        '''type_def : id ':' ARTICLE '(' attribute_defs_list ')' newline'''
+        p[0] = CustomTypeDefinition(p[1], p[5])
+
+    def p_type_def_error_closing(self, p):
+        '''type_def : id ':' ARTICLE '(' attribute_defs_list error NEWLINE'''
+        self.add_syntax_error(p[6], "Parenthèse droite ')'")
+
+    def p_type_def_error_attributes(self, p):
+        '''type_def : id ':' ARTICLE '(' error NEWLINE'''
+        self.add_syntax_error(p[5], "Liste d'attributes de l'article")
+
+    def p_type_def_error_opening(self, p):
+        '''type_def : id ':' ARTICLE error NEWLINE'''
+        self.add_syntax_error(p[4], "Parenthèse gauche ')'")
+
+    def p_type_def_error_article(self, p):
+        '''type_def : id ':' error NEWLINE'''
+        self.add_syntax_error(p[3], "Mot clé 'article'")
+
+    def p_type_def_error_colon(self, p):
+        '''type_def : id error NEWLINE'''
+        self.add_syntax_error(p[2], "Deux points ':'")
+
+    def p_attributes_list(self, p):
+        '''attribute_defs_list : attribute_def'''
+        p[0] = [p[1]]
+
+    def p_attributes_list_append(self, p):
+        '''attribute_defs_list : attribute_defs_list ',' attribute_def'''
+        p[0] = p[1] + [p[3]]
+
+    def p_attribute_def(self, p):
+        '''attribute_def : id ':' complex_type'''
+        p[0] = VariableDeclaration(p[1], p[3])
 
     def p_opt_sub_algo_defs_list(self, p):
         '''opt_sub_algo_defs_list : sub_algo_defs_list
@@ -179,16 +246,17 @@ class MyParser:
     
     def p_var_declaration_list(self, p):
         '''var_declaration_list : var_declaration_line'''
-        p[0] = [p[1]]
+        p[0] = p[1]
     
     def p_var_declaration_list_append(self, p):
         '''var_declaration_list : var_declaration_list var_declaration_line'''
-        p[0] = p[1] + [p[2]]
+        p[0] = p[1] + p[2]
 
 
     def p_var_declaration_line(self, p):
         '''var_declaration_line : id_list ':' complex_type newline'''
-        p[0] = VariableDeclarationLine(p[1], p[3])
+        var_type = p[3]
+        p[0] = [VariableDeclaration(var_name, var_type) for var_name in p[1]]
 
     def p_var_declaration_line_error_type(self, p):
         '''var_declaration_line : id_list ':' error NEWLINE'''
@@ -208,13 +276,11 @@ class MyParser:
 
 
     def p_basetype(self, p):
-        '''basetype : id
-                    | REEL
-                    | ENTIER'''
-        p[0] = p[1]
+        '''basetype : ID'''
+        p[0] = BaseType(p[1], p=p)
 
     def p_pointer_type(self, p):
-        '''pointer_type : POINTEUR opt_sur complex_type'''
+        '''pointer_type : POINTEUR SUR complex_type'''
         p[0] = PtrType(p[3], p=p)
 
     def p_pointer_type_error_type(self, p):
@@ -223,7 +289,7 @@ class MyParser:
 
     def p_pointer_type_error(self, p):
         '''pointer_type : POINTEUR error'''
-        self.add_syntax_error(p[2], "Mot clé 'sur' ou type pointé")
+        self.add_syntax_error(p[2], "Mot clé 'sur'")
 
 
     
@@ -231,7 +297,7 @@ class MyParser:
     def p_table_range(self, p):
         '''table_range : lit_int POINTS lit_int
                        | lit_int POINTS empty'''
-        p[0] = p[1], p[3]
+        p[0] = TableRange(p[1], p[3])
 
     def p_table_range_error_points(self, p):
         '''table_range : lit_int error'''
@@ -298,7 +364,6 @@ class MyParser:
 
     def p_statement(self, p):
         '''statement : assignment_statement
-                     | expression_statement
                      | function_statement
                      | pour_statement
                      | tq_statement
@@ -309,15 +374,24 @@ class MyParser:
     def p_assignment_statement(self, p):
         '''assignment_statement : expression L_ARROW expression newline'''
         p[0] = AssignmentStatement(p[1], p[3], s=p[1])
+        # left = p[1]
+        # if left is None:
+        #     return
 
-    def p_assignement_statement_error(self, p):
+        # if isinstance(left, Expression) and left.is_assignable:
+        #     p[0] = AssignmentStatement(p[1], p[3], s=p[1])
+        #     return
+
+        # e = NodeSyntaxError(left, "L'expression de gauche n'est pas affectable")
+        # self.add_error(e)
+
+    def p_assignement_statement_error_right(self, p):
         '''assignment_statement : expression L_ARROW error NEWLINE'''
         self.add_syntax_error(p[3], "Expression")
 
-
-    def p_expression_statement(self, p):
-        '''expression_statement : expression newline'''
-        p[0] = ExpressionStatement(p[1], s=p[1])
+    def p_assignement_statement_error_arrow(self, p):
+        '''assignment_statement : expression error NEWLINE'''
+        self.add_syntax_error(p[2], "Flèche d'affectation '<--'")
 
     
     def p_function_statement(self, p):
@@ -328,47 +402,66 @@ class MyParser:
         '''function_statement : id '(' function_inputs_list '!' error NEWLINE'''
         self.add_syntax_error(p[5], "Paramètres de sortie ou parenthèse droite ')'")
 
-    def p_function_outputs_list(self, p):
-        '''function_outputs_list : opt_expression_list'''
-        p[0] = p[1]
+    def p_function_statement_error_excl(self, p):
+        '''function_statement : id '(' function_inputs_list error NEWLINE'''
+        self.add_syntax_error(p[4], "Point d'exclamation '!'")
 
-    def p_function_outputs_list_error(self, p):
-        '''function_outputs_list : expression_list ',' error'''
-        self.add_syntax_error(p[3], "Paramètre de sortie après virgule ','")
+    
 
 
     def p_pour_statement(self, p):
         '''pour_statement : pour_header opt_statements_list pour_footer'''
-        _id, start, end = p[1] if p[1] is not None else [None, None, None]
-        p[0] = PourStatement(_id, start, end, p[2], p=p)
+        _id, start, end, pas = p[1] if p[1] is not None else [None, None, None, None]
+        p[0] = PourStatement(_id, start, end, pas, p[2], p=p)
 
     def p_pour_header(self, p):
-        '''pour_header : POUR ID ALLANT DE expression A expression newline'''
+        '''pour_header : POUR id ALLANT DE expression A expression opt_ppd newline'''
         self.incomplete_blocks.append("pour")
-        p[0] = (p[2], p[5], p[7])
+        p[0] = (p[2], p[5], p[7], p[8])
+
+    def p_opt_ppd(self, p):
+        '''opt_ppd : ppd
+                   | empty'''
+        p[0] = p[1]
+
+    def p_ppd(self, p):
+        '''ppd : PAR PAS DE lit_int'''
+        p[0] = p[4]
+
+    def p_ppd_error_expression(self, p):
+        '''ppd : PAR PAS DE error'''
+        self.add_syntax_error(p[4], "Un pas d'itération entier")
+
+    def p_ppd_error_de(self, p):
+        '''ppd : PAR PAS error'''
+        self.add_syntax_error(p[3], "Mot clé 'de'")
+
+    def p_ppd_error_pas(self, p):
+        '''ppd : PAR error'''
+        self.add_syntax_error(p[2], "Mot clé 'pas'")
 
     def p_pour_header_error_end_expression(self, p):
-        '''pour_header : POUR ID ALLANT DE expression A error NEWLINE'''
+        '''pour_header : POUR id ALLANT DE expression A error NEWLINE'''
         self.add_syntax_error(p[7], "Valeur de fin d'itération")
         self.incomplete_blocks.append("pour")
 
     def p_pour_header_error_a(self, p):
-        '''pour_header : POUR ID ALLANT DE expression error NEWLINE'''
+        '''pour_header : POUR id ALLANT DE expression error NEWLINE'''
         self.add_syntax_error(p[6], "Mot clé 'a'")
         self.incomplete_blocks.append("pour")
 
     def p_pour_header_error_start_expression(self, p):
-        '''pour_header : POUR ID ALLANT DE error NEWLINE'''
+        '''pour_header : POUR id ALLANT DE error NEWLINE'''
         self.add_syntax_error(p[5], "Valeur de début d'itération")
         self.incomplete_blocks.append("pour")
 
     def p_pour_header_error_de(self, p):
-        '''pour_header : POUR ID ALLANT error NEWLINE'''
+        '''pour_header : POUR id ALLANT error NEWLINE'''
         self.add_syntax_error(p[4], "Mot clé 'de'")
         self.incomplete_blocks.append("pour")
 
     def p_pour_header_error_allant(self, p):
-        '''pour_header : POUR ID error NEWLINE'''
+        '''pour_header : POUR id error NEWLINE'''
         self.add_syntax_error(p[3], "Mot clé 'allant'")
         self.incomplete_blocks.append("pour")
 
@@ -423,19 +516,56 @@ class MyParser:
 
 
     def p_si_statement(self, p):
-        '''si_statement : SI condition_faire_instructions opt_sinonsi_list opt_sinon_section FINSI newline'''
-        conditional_blocks = [p[2]] + p[3]
-        default_block = p[4]
+        '''si_statement : si_section opt_sinonsi_list opt_sinon_section si_footer'''
+        conditional_blocks = [p[1]] + p[2]
+        default_block = p[3]
         p[0] = SiStatement(conditional_blocks, default_block, p=p)
 
-    def p_si_statement_error(self, p):
-        '''si_statement : SI condition_faire_instructions opt_sinonsi_list opt_sinon_section error NEWLINE'''
-        self.add_syntax_error(p[5], "Instruction ou mot clé 'FinSi'")
+    
+
+    def p_si_header(self, p):
+        '''si_header : SI condition_faire'''
+        p[0] = p[2]
         self.incomplete_blocks.append("si")
 
+    def p_sinonsi_header(self, p):
+        '''sinonsi_header : SINONSI condition_faire'''
+        p[0] = p[2]
 
+    def p_sinon_header(self, p):
+        '''sinon_header : SINON FAIRE newline'''
+
+    def p_sinon_header_error_faire(self, p):
+        '''sinon_header : SINON error NEWLINE'''
+        self.add_syntax_error(p[2], "Mot clé 'Faire'")
+
+    def p_si_footer(self, p):
+        '''si_footer : FINSI newline'''
+        assert self.incomplete_blocks.pop() == "si"
+
+    def p_si_footer_error(self, p):
+        '''si_footer : error'''
+        self.add_syntax_error(p[1], "Mot clé 'FinSi'")
+        assert self.incomplete_blocks.pop() == "si"
 
     
+    def p_condition_faire(self, p):
+        '''condition_faire : expression FAIRE newline'''
+        p[0] = p[1]
+
+    def p_condition_faire_error_faire(self, p):
+        '''condition_faire : expression error NEWLINE'''
+        self.add_syntax_error(p[2], "Mot clé 'Faire'")
+
+    def p_condition_faire_error_condition(self, p):
+        '''condition_faire : error NEWLINE'''
+        self.add_syntax_error(p[1], "Condition")
+
+
+    def p_si_section(self, p):
+        '''si_section : si_header opt_statements_list'''
+        p[0] = ConditionalBlock(p[1], p[2])
+
     def p_opt_sinonsi_list(self, p):
         '''opt_sinonsi_list : sinonsi_list
                             | empty'''
@@ -447,8 +577,8 @@ class MyParser:
         p[0] = p[1] if p[1] is not None else []
 
     def p_sinon_section(self, p):
-        '''sinon_section : SINON newline opt_statements_list'''
-        p[0] = p[3]
+        '''sinon_section : sinon_header opt_statements_list'''
+        p[0] = p[2]
 
     def p_sinonsi_list(self, p):
         '''sinonsi_list : sinonsi_section'''
@@ -459,18 +589,15 @@ class MyParser:
         p[0] = p[1] + [p[2]]
 
     def p_sinonsi_section(self, p):
-        '''sinonsi_section : SINONSI condition_faire_instructions'''
-        p[0] = p[2]
-
-    def p_condition_faire_instructions(self, p):
-        '''condition_faire_instructions : expression FAIRE newline opt_statements_list'''
-        p[0] = ConditionalBlock(p[1], p[4])
-
+        '''sinonsi_section : sinonsi_header opt_statements_list'''
+        p[0] = ConditionalBlock(p[1], p[2])
 
     def p_primary_expression(self, p):
         '''primary_expression : id
                               | lit_int
-                              | lit_float'''
+                              | lit_float
+                              | lit_char
+                              | lit_bool'''
         p[0] = p[1]
 
 
@@ -490,7 +617,7 @@ class MyParser:
 
     def p_expression(self, p):
         '''expression                : logical_or_expression
-           expression                : function_expression
+                                     | function_expression
            logical_or_expression     : logical_and_expression
            logical_and_expression    : equality_expression
            equality_expression       : relational_expression
@@ -503,49 +630,64 @@ class MyParser:
 
     def p_logical_or_expression(self, p):
         '''logical_or_expression  : logical_or_expression OU logical_and_expression'''
-        p[0] = BinaryOr(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+
+        p[0] = BinaryOr(p[1], p[3], operator, s=p[1])
 
     def p_logical_and_expression(self, p):
         '''logical_and_expression : logical_and_expression ET equality_expression'''
-        p[0] = BinaryAnd(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryAnd(p[1], p[3], operator, s=p[1])
             
+    def p_equality_expression(self, p):
+        '''equality_expression : equality_expression '=' relational_expression'''
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryEq(p[1], p[3], operator, s=p[1])
 
     def p_relational_expression_lt(self, p):
         '''relational_expression : relational_expression '<' additive_expression'''
-        p[0] = BinaryLT(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryLT(p[1], p[3], operator, s=p[1])
 
     def p_relational_expression_gt(self, p):
         '''relational_expression : relational_expression '>' additive_expression'''
-        p[0] = BinaryLT(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryGT(p[1], p[3], operator, s=p[1])
 
     def p_relational_expression_lte(self, p):
         '''relational_expression : relational_expression LTE additive_expression'''
-        p[0] = BinaryLT(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryLTE(p[1], p[3], operator, s=p[1])
 
     def p_relational_expression_gte(self, p):
         '''relational_expression : relational_expression GTE additive_expression'''
-        p[0] = BinaryLT(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryGTE(p[1], p[3], operator, s=p[1])
 
     def p_additive_expression_plus(self, p):
         '''additive_expression : additive_expression '+' multiplicative_expression'''
-        p[0] = BinaryPlus(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryPlus(p[1], p[3], operator, s=p[1])
 
     def p_additive_expression_minus(self, p):
         '''additive_expression : additive_expression '-' multiplicative_expression'''
-        p[0] = BinaryMinus(p[1], p[3], s=p[1])
-
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryMinus(p[1], p[3], operator, s=p[1])
 
     def p_multiplicative_expression_times(self, p):
         '''multiplicative_expression : multiplicative_expression '*' unary_expression''' 
-        p[0] = BinaryTimes(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryTimes(p[1], p[3], operator, s=p[1])
 
     def p_multiplicative_expression_divide(self, p):
         '''multiplicative_expression : multiplicative_expression '/' unary_expression'''
-        p[0] = BinaryDivide(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryDivide(p[1], p[3], operator, s=p[1])
 
     def p_multiplicative_expression_modulo(self, p):
         '''multiplicative_expression : multiplicative_expression '%' unary_expression'''
-        p[0] = BinaryModulo(p[1], p[3], s=p[1])
+        operator = Operator(p[2], lineno=p.lineno(2), lexpos=p.lexpos(2))
+        p[0] = BinaryModulo(p[1], p[3], operator, s=p[1])
 
 
     def p_binary_expression_error(self, p):
@@ -555,6 +697,7 @@ class MyParser:
            relational_expression     : relational_expression     '>' error
            relational_expression     : relational_expression     LTE error
            relational_expression     : relational_expression     GTE error
+           equality_expression       : equality_expression       '=' error
            additive_expression       : additive_expression       '+' error
            additive_expression       : additive_expression       '-' error
            multiplicative_expression : multiplicative_expression '*' error
@@ -566,23 +709,28 @@ class MyParser:
 
     def p_unary_expression_plus(self, p):
         '''unary_expression : '+' unary_expression'''
-        p[0] = UnaryPlus(p[2], p=p)
+        operator = Operator(p[1], lineno=p.lineno(1), lexpos=p.lexpos(1))
+        p[0] = UnaryPlus(p[2], operator, p=p)
 
     def p_unary_expression_minus(self, p):
         '''unary_expression : '-' unary_expression'''
-        p[0] = UnaryMinus(p[2], p=p)
+        operator = Operator(p[1], lineno=p.lineno(1), lexpos=p.lexpos(1))
+        p[0] = UnaryMinus(p[2], operator, p=p)
 
     def p_unary_expression_pointer(self, p):
         '''unary_expression : '&' unary_expression'''
-        p[0] = UnaryDereference(p[2], p=p)
-
+        operator = Operator(p[1], lineno=p.lineno(1), lexpos=p.lexpos(1))
+        p[0] = UnaryPointer(p[2], operator, p=p)
+    
     def p_unary_expression_dereference(self, p):
         '''unary_expression : '^' unary_expression'''
-        p[0] = UnaryPointer(p[2], p=p)
+        operator = Operator(p[1], lineno=p.lineno(1), lexpos=p.lexpos(1))
+        p[0] = UnaryDereference(p[2], operator, p=p)
 
     def p_unary_expression_not(self, p):
         '''unary_expression : NON unary_expression'''
-        p[0] = UnaryNot(p[2], p=p)
+        operator = Operator(p[1], lineno=p.lineno(1), lexpos=p.lexpos(1))
+        p[0] = UnaryNot(p[2], operator, p=p)
 
     def p_unary_expression_error(self, p):
         '''unary_expression : '+' error
@@ -598,20 +746,36 @@ class MyParser:
         p[0] = p[1]
         
 
-    def p_postfix_expression_attribut(self, p):
-        '''postfix_expression : postfix_expression '.' id '''
-        p[0] = AttributExpression(p[1], p[3], s=p[1])
+    def p_attribute_expression(self, p):
+        '''attribute_expression : postfix_expression '.' id '''
+        p[0] = AttributeExpression(p[1], p[3], s=p[1])
 
-    def p_postfix_expression_attribut_error(self, p):
+    def p_postfix_expression_attribute(self, p):
+        '''postfix_expression : attribute_expression'''
+        p[0] = p[1]
+
+    def p_postfix_expression_attribute_error(self, p):
         '''postfix_expression : postfix_expression '.' error'''
         self.add_syntax_error(p[3], "Attribut")
 
-    def p_postfix_expression_table(self, p):
-        '''postfix_expression : postfix_expression '[' expression ']' '''
+    def p_index_list(self, p):
+        '''index_list : expression_list'''
+        p[0] = p[1]
+
+    def p_index_list_error(self, p):
+        '''index_list : expression_list ',' error '''
+        self.add_syntax_error(p[3], "Indice de tableau après virgule ','")
+
+    def p_table_expression(self, p):
+        '''table_expression : postfix_expression '[' index_list ']' '''
         p[0] = TableExpression(p[1], p[3], s=p[1])
 
+    def p_postfix_expression_table(self, p):
+        '''postfix_expression : table_expression'''
+        p[0] = p[1]
+
     def p_postfix_expression_table_error_closing(self, p):
-        '''postfix_expression : postfix_expression '[' expression error'''
+        '''postfix_expression : postfix_expression '[' index_list error'''
         self.add_syntax_error(p[4], "Crochet droit ']'")
 
     def p_postfix_expression_table_error_expression(self, p):
@@ -624,13 +788,28 @@ class MyParser:
         '''function_expression : id '(' function_inputs_list ')' '''
         p[0] = FunctionExpression(p[1], p[3], s=p[1])
 
-    def p_function_expression_error(self, p):
-        '''function_expression : id '(' expression_list error '''
-        self.add_syntax_error(p[4], "Virgule ',' suivie de paramètre d'entrée ou parenthèse droite ')'")
+    def p_function_expression_error_statement(self, p):
+        # '''function_expression : id '(' function_inputs_list '!' function_outputs_list ')' '''
+        error_token = LexToken()
+        error_token.type = '!'  # type: ignore
+        error_token.value = '!'  # type: ignore
+        error_token.lexpos = p.lexpos(4)  # type: ignore
+        error_token.lineno = p.lineno(4)  # type: ignore
 
-    def p_function_expression_error_no_params(self, p):
-        '''function_expression : id '(' error ')' '''
-        self.add_syntax_error(p[3], "Paramètres d'entrée ou parenthèse droite ')'")
+        self.add_syntax_error(error_token, details = "Un algorithme appelé avec un point d'exclamation '!' n'est pas une expression")
+
+
+    def p_function_expression_error(self, p):
+        '''function_expression : id '(' function_inputs_list error '''
+
+        details = ""
+        if p[4].value == '!':
+            details = "Un algorithme appelé avec un point d'exclamation '!' ne peut pas servir comme expression"
+        self.add_syntax_error(p[4], "Parenthèse droite ')'", details=details)
+
+    # def p_function_expression_error_no_params(self, p):
+    #     '''function_expression : id '(' error ')' '''
+    #     self.add_syntax_error(p[3], "Paramètres d'entrée ou parenthèse droite ')'")
 
     def p_function_inputs_list(self, p):
         '''function_inputs_list : opt_expression_list'''
@@ -640,7 +819,13 @@ class MyParser:
         '''function_inputs_list : expression_list ',' error '''
         self.add_syntax_error(p[3], "Paramètre d'entrée après virgule ','")
 
+    def p_function_outputs_list(self, p):
+        '''function_outputs_list : opt_expression_list'''
+        p[0] = p[1]
 
+    def p_function_outputs_list_error(self, p):
+        '''function_outputs_list : expression_list ',' error'''
+        self.add_syntax_error(p[3], "Paramètre de sortie après virgule ','")
     
 
     def p_opt_id_list(self, p):
@@ -681,10 +866,6 @@ class MyParser:
     def p_opt_de(self, p):
         '''opt_de : DE
                   | empty'''
-
-    def p_opt_sur(self, p):
-        '''opt_sur : SUR
-                   | empty'''
     ### ### ###
 
     ### Basics
@@ -695,6 +876,18 @@ class MyParser:
     def p_lit_float(self, p):
         '''lit_float : LIT_FLOAT'''
         p[0] = LitFloat(p[1], p=p)
+
+    def p_lit_char(self, p):
+        '''lit_char : LIT_CHAR'''
+        if p[1] == "bad":
+            e = LitCharError(p.lexpos(1), p.lineno(1))
+            self.add_error(e)
+        p[0] = LitChar(p[1], p=p)
+
+    def p_lit_bool(self, p):
+        '''lit_bool : VRAI
+                    | FAUX'''
+        p[0] = LitBool(p[1], p=p)
 
     def p_empty(self, p):
         '''empty : '''

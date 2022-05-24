@@ -1,12 +1,11 @@
 import ply.lex as lex
 
 class MyLexer:
+
     reserved = [
         'TYPES',
         'VARIABLES',
         'INSTRUCTIONS',
-        'ENTIER',
-        'REEL',
         'POINTEUR',
         'TABLEAU',
         'SUR',
@@ -34,13 +33,18 @@ class MyLexer:
         'SI',
         'SINONSI',
         'SINON',
-        'FINSI'
+        'FINSI',
+        'ARTICLE',
+        'VRAI',
+        'FAUX'
     ]
 
     # List of token names.   This is always required
     tokens = [
         'LIT_INT',
         'LIT_FLOAT',
+        'LIT_CHAR',
+        'LIT_BOOL',
         'NEWLINE',
         'ID',
         'POINTS',
@@ -48,14 +52,15 @@ class MyLexer:
         'EOF',
         'LTE', # "less than equals"    -> '<='
         'GTE', # "greater than equals" -> '>='
-    ] + list(reserved)
+    ] + reserved
 
     aliases = {
         'PTR'            : 'POINTEUR',
         'ALGO'           : 'ALGORITHME',
         'À'              : 'A',
         'SOUSALGO'       : 'SA',
-        'SOUSALGORITHME' : 'SA'
+        'SOUSALGORITHME' : 'SA',
+        'REÉL'           : 'REEL',
     }
 
     literals = "+-*/(){}[]=:,;.&^%!<>"
@@ -83,19 +88,38 @@ class MyLexer:
     t_LIT_FLOAT = 'a^'
     t_LIT_INT = 'a^'
 
+
+
     t_L_ARROW = r'<--'
     t_LTE = r'<='
     t_GTE = r'>='
 
+    def t_LIT_CHAR(self, t):
+        r"'([ -\[\]-~]|\\n|\\0|\\'|\\\\)'" # Match all ascii characters + "\n", "\0", "\'" and "\\"
+        t.value = t.value[1: -1]
+        if t.value[0] == "\\" and t.value[1] not in "0n\\'":
+                t.value = "bad"
+        return t
+
+    def t_lit_char_error(self, t):
+        r"('\\')|('[^\n']+)|('')|('(?=\n))"
+        t.type = "LIT_CHAR"
+        t.value = "bad"
+        return t
+
+    # def t_LIT_CHAR_ERROR(self, t):
+    #     r"'[ -~]'?[^\n]*"
 
     def t_LIT_NUM(self, t):
-        r'\d?[.]?\d+'
+        r'-*\d+(\.\d+)?'
+
+        # Remove excess minus signs because python's "int" function doesn't support them
+        t.value = t.value.replace("--", "")
+
         if '.' in t.value:
             t.type = "LIT_FLOAT"
-            t.value = float(t.value)
         else:
             t.type = "LIT_INT"
-            t.value = int(t.value)
 
         return t
 
@@ -124,7 +148,6 @@ class MyLexer:
             t.type = 'EOF'
             t.value = t.type
             return t
-
 
     # Error handling rule
     def t_error(self, t):

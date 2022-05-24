@@ -1,0 +1,67 @@
+algorithme test
+    types:
+        nv_type: article(var_entier: entier, var_reel: réel, tab_entier: tableau[0..12] de entier)
+    variables:
+        i: entier
+        tab: tableau[0..10] de entier
+        fin: entier
+        temp: entier
+    instructions:
+        tab[0] <-- 0
+        tab[1] <-- -1
+        tab[2] <-- -2
+        tab[3] <-- -3
+        tab[4] <-- -4
+        tab[5] <-- -5
+        tab[6] <-- -6
+        tab[7] <-- -7
+        tab[8] <-- -8
+        tab[9] <-- -9
+
+        pour fin allant de 9 à 0 par pas de -1
+            pour i allant de 0 à fin
+                si tab[i] > tab[i+1] faire
+                    temp <-- tab[i]
+                    tab[i] <-- tab[i+1]
+                    tab[i+1] <-- temp
+                finsi
+            finpour
+        finpour
+finalgo
+
+
+
+#### Code C généré
+
+typedef struct { 
+  int var_entier;
+  float var_reel;
+  int tab_entier[12];
+} nv_type;
+
+void main() { 
+  int i;
+  int tab[10];
+  int fin;
+  int temp;
+
+  tab[0] = 0;
+  tab[1] = -1;
+  tab[2] = -2;
+  tab[3] = -3;
+  tab[4] = -4;
+  tab[5] = -5;
+  tab[6] = -6;
+  tab[7] = -7;
+  tab[8] = -8;
+  tab[9] = -9;
+  for (int fin = 9; fin > 0; fin -= 1) {
+    for (int i = 0; i < fin; i += 1) {
+      if (tab[i] > tab[i + 1]) { 
+        temp = tab[i];
+        tab[i] = tab[i + 1];
+        tab[i + 1] = temp;
+      } 
+    }
+  }
+}

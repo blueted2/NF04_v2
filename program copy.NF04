@@ -1,0 +1,28 @@
+algorithme test
+    types:
+        custom: article(a1: entier, b: entier)
+    variables:
+        var_reel: réel
+        var_entier: entier
+        tab_reel: tableau[0..10] de réel
+        tab_entier, tab_entier2: tableau[0..10] de entier
+        var_bool: booléen
+        ptr_sur_reel, ptr_sur_reel2: ptr sur réel
+        ptr_sur_entier, ptr_sur_entier2: ptr sur entier
+
+        i, N: entier
+        var_redéclarée: entier
+        var_redéclarée: entier
+        var_redéclarée: entier
+    instructions:
+        var_pas_déclarée <-- 1
+
+        pour i allant de 1 à N par pas de 2
+            var_entier <-- 1
+        finpour
+        var_entier <-- 1.5 % 1
+
+        pour i allant de 1 à var_reel par pas de 2
+            var_entier <-- 1
+        finpour
+finalgo

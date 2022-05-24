@@ -1,8 +1,18 @@
-algorithme name
+algorithme test
     types:
+        nv_type: article(var_entier: entier, var_reel: réel, tab_entier: tableau[0..12] de entier)
     variables:
-        tab, tab2 : tableau[0..23, 0..23] de réel
+        truc: ptr sur tableau[0..12] de entier
+        tab2: tableau[0..20] de entier
     instructions:
-        pour i allant de 1 à 12
-        finpour
+        truc <-- test2(tab2)
 finalgo
+
+sa test2
+pe:
+    tab: tableau[0..] de entier
+ps:
+    s: ptr sur tableau[0..12] de entier
+variables:
+instructions:
+finsa
